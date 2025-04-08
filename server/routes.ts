@@ -22,7 +22,7 @@ import {
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 
-const storage = getStorage();
+
 
 // Set up multer storage
 const uploadsDir = path.join(process.cwd(), "uploads");
@@ -61,6 +61,7 @@ const upload = multer({
 import fetch from 'node-fetch';
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  const storage = getStorage();
   // Helper function for handling ZodError
   const handleZodError = (error: unknown, res: Response) => {
     if (error instanceof ZodError) {
