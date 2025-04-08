@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from './database';
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -15,7 +16,8 @@ import {
   insertOwnerIntentSchema,
   insertValuationSchema,
   insertRecommendationSchema,
-  insertBuyerMatchSchema
+  insertBuyerMatchSchema,
+  users,
 } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -186,6 +188,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     return res.json(user);
+  });
+  app.get("/api/debug/users", async (req, res) => {
+    const result = await db.select().from(users);
+    console.log("Queried users:", result);
+    res.json(result);
   });
   
   // Company endpoints

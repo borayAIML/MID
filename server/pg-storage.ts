@@ -55,6 +55,7 @@ export class PgStorage implements IStorage {
 
   async createUser(user: InsertUser): Promise<User> {
     const result = await db.insert(users).values(user).returning();
+    console.log("Inserted user:", result);
     return result[0];
   }
 
