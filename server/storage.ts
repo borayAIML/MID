@@ -371,4 +371,11 @@ import { PgStorage } from './pg-storage';
 import { dbConnectionSuccessful } from './database';
 
 // Use PostgreSQL storage if the connection was successful, otherwise use in-memory storage
-export const storage = dbConnectionSuccessful ? new PgStorage() : new MemStorage();
+let storageInstance: IStorage;
+
+export function getStorage(): IStorage {
+  if (!storageInstance) {
+    storageInstance = dbConnectionSuccessful ? new PgStorage() : new MemStorage();
+  }
+  return storageInstance;
+}

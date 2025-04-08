@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { getStorage } from './storage';
 import { db } from './database';
 import multer from "multer";
 import path from "path";
@@ -21,6 +21,8 @@ import {
 } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
+
+const storage = getStorage();
 
 // Set up multer storage
 const uploadsDir = path.join(process.cwd(), "uploads");
@@ -85,7 +87,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Email already exists. Please try logging in instead." 
         });
       }
-      
+
       // Create user
       const userData = {
         username: email, // Using email as username
