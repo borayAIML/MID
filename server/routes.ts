@@ -74,6 +74,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/signup", async (req, res) => {
     try {
       const { fullName, email, password, companyName } = req.body;
+
+      console.log("Signup request body:", req.body);
       
       // Check if email already exists
       const existingUserByEmail = await storage.getUserByEmail(email);
@@ -92,7 +94,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fullName: fullName,
         role: "user", // Default role is "user" (updated from "business_owner")
       };
-      
+      console.log("User data to be inserted:", userData);
+
       const user = await storage.createUser(userData);
       
       // Return success without exposing the full user object
