@@ -1,4 +1,4 @@
-import { drizzle } from 'drizzle-orm/node-postgres';
+import { drizzle } from 'drizzle-orm/neon-http';
 import pg from 'pg';
 const { Pool } = pg;
 import * as schema from '@shared/schema';
@@ -16,7 +16,7 @@ export async function initializeDatabase() {
     
     // Create connection pool to local PostgreSQL
     const pool = new Pool({
-      connectionString: "postgres://postgres:Musi%401909@localhost:5432/businessboost"
+      connectionString: process.env.DATABASE_URL!
     });
     
     // Test connection
