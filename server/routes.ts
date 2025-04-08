@@ -194,7 +194,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log("Queried users:", result);
     res.json(result);
   });
+  app.post("/api/debug/create-test-user", async (req, res) => {
+    try {
+      const testUser = {
+        username: "test@example.com",
+        email: "test@example.com",
+        password: "test123",
+        fullName: "Test User",
+        role: "user"
+      };
   
+      const result = await db.insert(users).values(testUser).returning();
+      console.log("Manual test user insert result:", result);
+      res.json({ success: true, inserted: result });
+    } catch (error) {
+      console.error("Manual insert error:", error);
+      res.status(500).json({ error: "Insert failed" });
+    }
+  });
   // Company endpoints
   app.post("/api/companies", async (req, res) => {
     try {
