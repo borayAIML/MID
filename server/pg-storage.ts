@@ -54,9 +54,15 @@ export class PgStorage implements IStorage {
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    const result = await db.insert(users).values(user).returning();
-    console.log("Inserted user:", result);
-    return result[0];
+    try {
+      const result = await db.insert(users).values(user).returning();
+      console.log("Attempted to insert user:", user);
+      console.log("Insert result:", result);
+      return result[0];
+    } catch (err) {
+      console.error("Error inserting user:", err);
+      throw err;
+    }
   }
 
   // Company methods
