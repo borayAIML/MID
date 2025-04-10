@@ -143,13 +143,20 @@ export default function BusinessDataWizard({ userData, onComplete }: BusinessDat
       const defaultUserId = 1;
       
       // Create the company with more robust error handling
-      const companyResponse = await apiRequest("POST", "/api/companies", {
-        userId: defaultUserId,
-        name: userDataToUse.companyName,
-        sector: userDataToUse.sector,
-        location: userDataToUse.location,
-        yearsInBusiness: userDataToUse.yearsInBusiness,
-        goal: userDataToUse.goal,
+      const companyResponse = await apiRequest("/api/companies", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: defaultUserId,
+          name: userDataToUse.companyName,
+          uniqueId: defaultUserId,
+          sector: userDataToUse.sector,
+          location: userDataToUse.location,
+          yearsInBusiness: userDataToUse.yearsInBusiness,
+          goal: userDataToUse.goal,
+        }),
+        headers: {
+          "Content-Type": "application/json"
+        }
       });
       
       if (!companyResponse.ok) {
@@ -157,13 +164,20 @@ export default function BusinessDataWizard({ userData, onComplete }: BusinessDat
         
         // Try a more direct approach with minimal data
         console.log("Trying fallback company creation approach");
-        const fallbackResponse = await apiRequest("POST", "/api/companies", {
-          userId: 1,
-          name: "Default Company",
-          sector: "Technology",
-          location: "USA",
-          yearsInBusiness: "1-5",
-          goal: "Valuation"
+        const fallbackResponse = await apiRequest("/api/companies", {
+          method: "POST",
+          body: JSON.stringify({
+            userId: 1,
+            uniqueId: 1, // 👈 assuming you want to use the same as userId
+            name: "Default Company",
+            sector: "Technology",
+            location: "USA",
+            yearsInBusiness: "1-5",
+            goal: "Valuation"
+          }),
+          headers: {
+            "Content-Type": "application/json"
+          }
         });
         
         if (!fallbackResponse.ok) {
@@ -237,7 +251,9 @@ export default function BusinessDataWizard({ userData, onComplete }: BusinessDat
       
       if (currentCompanyId) {
         console.log("Saving financial data for company ID:", currentCompanyId);
-        await apiRequest("POST", "/api/financials", {
+        await apiRequest("/api/financials", {
+          method: "POST",
+          body: JSON.stringify({
           companyId: currentCompanyId,
           revenueCurrent: data.revenueCurrent !== null 
             ? data.revenueCurrent.toString() 
@@ -254,6 +270,10 @@ export default function BusinessDataWizard({ userData, onComplete }: BusinessDat
           netMargin: data.netMargin !== null 
             ? data.netMargin.toString() 
             : null,
+          }),
+          headers: {
+            "Content-Type": "application/json"
+          }
         });
         
         toast({
@@ -296,13 +316,19 @@ export default function BusinessDataWizard({ userData, onComplete }: BusinessDat
       
       if (currentCompanyId) {
         console.log("Saving employee data for company ID:", currentCompanyId);
-        await apiRequest("POST", "/api/employees", {
+        await apiRequest("/api/employees", {
+          method: "POST",
+          body: JSON.stringify({
           companyId: currentCompanyId,
           count: data.employeeCount !== null 
             ? data.employeeCount.toString() 
             : null,
           digitalSystems: data.digitalSystems,
           otherSystemDetails: data.otherSystemDetails || null,
+          }),
+          headers: {
+            "Content-Type": "application/json"
+          }
         });
         
         toast({
@@ -414,7 +440,9 @@ export default function BusinessDataWizard({ userData, onComplete }: BusinessDat
       
       if (currentCompanyId) {
         console.log("Saving technology data for company ID:", currentCompanyId);
-        await apiRequest("POST", "/api/technology", {
+        await apiRequest("/api/technology", {
+          method: "POST",
+          body: JSON.stringify({
           companyId: currentCompanyId,
           transformationLevel: data.transformationLevel !== null 
             ? data.transformationLevel.toString() 
@@ -423,6 +451,10 @@ export default function BusinessDataWizard({ userData, onComplete }: BusinessDat
           techInvestmentPercentage: data.techInvestmentPercentage !== null 
             ? data.techInvestmentPercentage.toString() 
             : null,
+          }),
+          headers: {
+            "Content-Type": "application/json"
+          }
         });
         
         toast({
@@ -474,7 +506,9 @@ export default function BusinessDataWizard({ userData, onComplete }: BusinessDat
       console.log("Saving owner intent data for company ID:", currentCompanyId);
       
       // Save owner intent data to API
-      const ownerIntentResponse = await apiRequest("POST", "/api/owner-intent", {
+      const ownerIntentResponse = await apiRequest("/api/owner-intent", {
+        method: "POST",
+        body: JSON.stringify({
         companyId: currentCompanyId,
         intent: data.intent,
         exitTimeline: data.exitTimeline,
@@ -482,6 +516,10 @@ export default function BusinessDataWizard({ userData, onComplete }: BusinessDat
         valuationExpectations: data.valuationExpectations !== null 
           ? data.valuationExpectations.toString() 
           : null,
+        }),
+        headers: {
+          "Content-Type": "application/json"
+        }
       });
       
       if (!ownerIntentResponse.ok) {
@@ -496,7 +534,13 @@ export default function BusinessDataWizard({ userData, onComplete }: BusinessDat
       
       // Generate valuation
       console.log("Generating valuation for company ID:", currentCompanyId);
-      const valuationResponse = await apiRequest("POST", `/api/companies/${currentCompanyId}/generate-valuation`, {});
+      const valuationResponse = await apiRequest(`/api/companies/${currentCompanyId}/generate-valuation`, {
+        method: "POST",
+        body: JSON.stringify({}),
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
       
       if (!valuationResponse.ok) {
         const errorText = await valuationResponse.text();
