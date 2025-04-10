@@ -699,10 +699,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       revenueMultiple: Math.round(revenueMultiple).toString(),
       assetBased: Math.round(assetBased).toString(),
       riskScore: riskScore,
-      financialHealthScore: financialHealthScore.toString(),
-      marketPositionScore: marketPositionScore.toString(),
-      operationalEfficiencyScore: operationalEfficiencyScore.toString(),
-      debtStructureScore: debtStructureScore.toString(),
+      financialHealthScore: financialHealthScore,
+      marketPositionScore: marketPositionScore,
+      operationalEfficiencyScore: operationalEfficiencyScore,
+      debtStructureScore: debtStructureScore,
       redFlags
     };
     

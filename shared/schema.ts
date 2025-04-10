@@ -27,7 +27,7 @@ export const companies = pgTable("companies", {
   userId: integer("user_id").notNull().references(() => users.id),
   name: text("name").notNull(),
   website: text("website"),
-  uniqueId: text("unique_id").notNull().unique(), // Unique ID based on company name and domain
+  uniqueId: integer("unique_id").notNull().unique(), // Unique ID based on company name and domain
   sector: text("sector").notNull(),
   industryGroup: text("industry_group"),
   location: text("location").notNull(),

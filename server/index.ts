@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { PgStorage } from './pg-storage';
 import { setupVite, serveStatic, log } from "./vite";
 import { initializeDatabase } from "./database";
+import 'dotenv/config';
 
 const app = express();
 app.use(express.json());

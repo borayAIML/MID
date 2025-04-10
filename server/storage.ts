@@ -130,6 +130,10 @@ export class MemStorage implements IStorage {
     
     // Create a default company for testing/demo purposes
     const defaultCompany: Company = {
+      uniqueId: 1, // ✅ Added
+      website: null, // ✅ Added
+      industryGroup: null, // ✅ Added
+      aiAnalyzed: false, // ✅ Added
       id: 1,
       userId: 1,
       name: "Example Business",
@@ -145,13 +149,13 @@ export class MemStorage implements IStorage {
     const defaultValuation: Valuation = {
       id: 1,
       companyId: 1,
-      valuationMin: 950000,
-      valuationMedian: 1200000,
-      valuationMax: 1450000,
-      ebitdaMultiple: 5.2,
-      discountedCashFlow: 1250000,
-      revenueMultiple: 2.1,
-      assetBased: 980000,
+      valuationMin: "950000",
+      valuationMedian: "1200000",
+      valuationMax: "1450000",
+      ebitdaMultiple: "5.2",
+      discountedCashFlow: "1250000",
+      revenueMultiple: "2.1",
+      assetBased: "980000",
       riskScore: 65,
       financialHealthScore: 70,
       marketPositionScore: 65,
@@ -207,7 +211,14 @@ export class MemStorage implements IStorage {
   async createCompany(insertCompany: InsertCompany): Promise<Company> {
     const id = this.currentCompanyId++;
     const now = new Date();
-    const company: Company = { ...insertCompany, id, createdAt: now };
+    const company: Company = { 
+      ...insertCompany, 
+      website: insertCompany.website ?? null,
+      industryGroup: insertCompany.industryGroup ?? null,
+      aiAnalyzed: insertCompany.aiAnalyzed ?? false,
+      id, 
+      createdAt: now 
+    };
     this.companies.set(id, company);
     return company;
   }
@@ -226,7 +237,16 @@ export class MemStorage implements IStorage {
   async createFinancial(insertFinancial: InsertFinancial): Promise<Financial> {
     const id = this.currentFinancialId++;
     const now = new Date();
-    const financial: Financial = { ...insertFinancial, id, createdAt: now };
+    const financial: Financial = { 
+      ...insertFinancial,
+      revenueCurrent: insertFinancial.revenueCurrent ?? null,
+      revenuePrevious: insertFinancial.revenuePrevious ?? null,
+      revenueTwoYearsAgo: insertFinancial.revenueTwoYearsAgo ?? null,
+      ebitda: insertFinancial.ebitda ?? null,
+      netMargin: insertFinancial.netMargin ?? null,
+      id, 
+      createdAt: now
+    };
     this.financials.set(id, financial);
     return financial;
   }
@@ -245,7 +265,13 @@ export class MemStorage implements IStorage {
   async createEmployee(insertEmployee: InsertEmployee): Promise<Employee> {
     const id = this.currentEmployeeId++;
     const now = new Date();
-    const employee: Employee = { ...insertEmployee, id, createdAt: now };
+    const employee: Employee = { 
+      ...insertEmployee, 
+      count: insertEmployee.count ?? null,
+      digitalSystems: (insertEmployee.digitalSystems ?? []) as string[],
+      otherSystemDetails: insertEmployee.otherSystemDetails ?? null,
+      id, 
+      createdAt: now };
     this.employees.set(id, employee);
     return employee;
   }
@@ -283,7 +309,14 @@ export class MemStorage implements IStorage {
   async createTechnology(insertTechnology: InsertTechnology): Promise<Technology> {
     const id = this.currentTechnologyId++;
     const now = new Date();
-    const technology: Technology = { ...insertTechnology, id, createdAt: now };
+    const technology: Technology = { ...insertTechnology,
+       id,
+       transformationLevel: insertTechnology.transformationLevel ?? null,
+       technologiesUsed: Array.isArray(insertTechnology.technologiesUsed)
+         ? insertTechnology.technologiesUsed as string[]
+         : [],
+       techInvestmentPercentage: insertTechnology.techInvestmentPercentage ?? null,
+      createdAt: now };
     this.technologies.set(id, technology);
     return technology;
   }
@@ -302,7 +335,11 @@ export class MemStorage implements IStorage {
   async createOwnerIntent(insertOwnerIntent: InsertOwnerIntent): Promise<OwnerIntent> {
     const id = this.currentOwnerIntentId++;
     const now = new Date();
-    const ownerIntent: OwnerIntent = { ...insertOwnerIntent, id, createdAt: now };
+    const ownerIntent: OwnerIntent = { ...insertOwnerIntent,
+      idealOutcome: insertOwnerIntent.idealOutcome ?? null,
+      valuationExpectations: insertOwnerIntent.valuationExpectations ?? null, 
+      id, 
+      createdAt: now };
     this.ownerIntents.set(id, ownerIntent);
     return ownerIntent;
   }
@@ -321,7 +358,25 @@ export class MemStorage implements IStorage {
   async createValuation(insertValuation: InsertValuation): Promise<Valuation> {
     const id = this.currentValuationId++;
     const now = new Date();
-    const valuation: Valuation = { ...insertValuation, id, createdAt: now };
+    const valuation: Valuation = { 
+      ...insertValuation, 
+      valuationMin: insertValuation.valuationMin ?? null,
+      valuationMedian: insertValuation.valuationMedian ?? null,
+      valuationMax: insertValuation.valuationMax ?? null,
+      ebitdaMultiple: insertValuation.ebitdaMultiple ?? null,
+      discountedCashFlow: insertValuation.discountedCashFlow ?? null,
+      revenueMultiple: insertValuation.revenueMultiple ?? null,
+      assetBased: insertValuation.assetBased ?? null,
+      riskScore: insertValuation.riskScore,
+      financialHealthScore: insertValuation.financialHealthScore,
+      marketPositionScore: insertValuation.marketPositionScore,
+      operationalEfficiencyScore: insertValuation.operationalEfficiencyScore,
+      debtStructureScore: insertValuation.debtStructureScore,
+      redFlags: Array.isArray(insertValuation.redFlags) 
+        ? insertValuation.redFlags as string[] 
+        : [],
+      id, 
+      createdAt: now };
     this.valuations.set(id, valuation);
     return valuation;
   }
@@ -340,7 +395,13 @@ export class MemStorage implements IStorage {
   async createRecommendation(insertRecommendation: InsertRecommendation): Promise<Recommendation> {
     const id = this.currentRecommendationId++;
     const now = new Date();
-    const recommendation: Recommendation = { ...insertRecommendation, id, createdAt: now };
+    const recommendation: Recommendation = { 
+      ...insertRecommendation, 
+      suggestions: Array.isArray(insertRecommendation.suggestions)
+      ? insertRecommendation.suggestions as string[]
+      : [],
+      id, 
+      createdAt: now };
     this.recommendations.set(id, recommendation);
     return recommendation;
   }
@@ -359,7 +420,13 @@ export class MemStorage implements IStorage {
   async createBuyerMatch(insertBuyerMatch: InsertBuyerMatch): Promise<BuyerMatch> {
     const id = this.currentBuyerMatchId++;
     const now = new Date();
-    const buyerMatch: BuyerMatch = { ...insertBuyerMatch, id, createdAt: now };
+    const buyerMatch: BuyerMatch = { 
+      ...insertBuyerMatch, 
+      tags: Array.isArray(insertBuyerMatch.tags)
+      ? insertBuyerMatch.tags as string[]
+      : [],
+      id, 
+      createdAt: now };
     this.buyerMatches.set(id, buyerMatch);
     return buyerMatch;
   }
