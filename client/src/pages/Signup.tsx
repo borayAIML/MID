@@ -57,6 +57,9 @@ export default function Signup() {
       });
       
       if (response && response.success) {
+        console.log("User created successfully:", response);
+        localStorage.setItem("userId", response.userId.toString());
+        console.log("User ID stored:", response.userId);
         toast({
           title: "Account created successfully",
           description: "Welcome to MANDA INSTITUTE! Please complete your onboarding.",
