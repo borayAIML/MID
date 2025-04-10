@@ -228,10 +228,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
+
+      console.log("Company data to be inserted:", companyData);
       
       const company = await storage.createCompany(companyData);
+      console.log("Company inserted:", company);
       return res.status(201).json(company);
     } catch (error) {
+      console.error("Company creation error:", error);
       return handleZodError(error, res);
     }
   });
