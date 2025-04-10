@@ -141,14 +141,17 @@ export default function BusinessDataWizard({ userData, onComplete }: BusinessDat
       
       // Always use the default user with ID 1
       const defaultUserId = 1;
+
+      const storedUserId = localStorage.getItem("userId");
+      const parsedUserId = storedUserId ? parseInt(storedUserId, 10) : null;
       
       // Create the company with more robust error handling
       const companyResponse = await apiRequest("/api/companies", {
         method: "POST",
         body: JSON.stringify({
-          userId: defaultUserId,
+          userId: parsedUserId,
           name: userDataToUse.companyName,
-          uniqueId: defaultUserId,
+          uniqueId: parsedUserId,
           sector: userDataToUse.sector,
           location: userDataToUse.location,
           yearsInBusiness: userDataToUse.yearsInBusiness,
