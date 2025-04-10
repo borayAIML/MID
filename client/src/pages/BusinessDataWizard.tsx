@@ -170,8 +170,8 @@ export default function BusinessDataWizard({ userData, onComplete }: BusinessDat
         const fallbackResponse = await apiRequest("/api/companies", {
           method: "POST",
           body: JSON.stringify({
-            userId: 1,
-            uniqueId: 1, // 👈 assuming you want to use the same as userId
+            userId: parsedUserId,
+            uniqueId: parsedUserId,
             name: "Default Company",
             sector: "Technology",
             location: "USA",
