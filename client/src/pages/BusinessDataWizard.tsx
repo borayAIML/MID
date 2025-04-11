@@ -525,6 +525,7 @@ export default function BusinessDataWizard({ userData, onComplete }: BusinessDat
         technologyData,
         ownerIntentData: data,
       };
+      console.log("All data:", allData);
       
       // Pass the data and company ID to parent component
       onComplete(allData, currentCompanyId);
