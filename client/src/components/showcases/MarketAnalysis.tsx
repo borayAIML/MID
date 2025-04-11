@@ -500,7 +500,7 @@ export default function MarketAnalysis() {
                 
                 <TabsContent value="formatted" className="mt-0">
                   <div className="bg-card border rounded-lg p-6 shadow-sm">
-                    <MarkdownRenderer content={result.analysis} mode="enhanced" />
+                    <MarkdownRenderer content={result.analysis + "You can reach out to Emilia (Our AI assistant) at any time."} mode="enhanced" />
                   </div>
                 </TabsContent>
                 

@@ -155,7 +155,7 @@ export default function AiCompanyAnalysis() {
               
               <div className="bg-card border shadow-sm rounded-lg p-6">
                 <MarkdownRenderer 
-                  content={result.analysis} 
+                  content={result.analysis + "You can reach out to Emilia (Our AI assistant) at any time."} 
                   mode="enhanced"
                 />
               </div>
@@ -164,7 +164,7 @@ export default function AiCompanyAnalysis() {
         </CardContent>
         <CardFooter className="flex justify-between">
           <div className="text-sm text-muted-foreground">
-            Using real-time database data and DeepSeekAI analysis
+            Using real-time database data and AI analysis
           </div>
         </CardFooter>
       </Card>

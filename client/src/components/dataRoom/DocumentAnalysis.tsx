@@ -16,6 +16,7 @@ import {
   getComprehensiveDocumentAnalysis
 } from '@/lib/documentAnalysisService';
 import { CalendarDays, AlertTriangle, CheckCircle, FileText, TrendingUp, ChevronDown, ChevronUp, DollarSign, BriefcaseBusiness, FileCog } from 'lucide-react';
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 
 interface DocumentAnalysisProps {
   companyId: number;
@@ -350,7 +351,12 @@ export default function DocumentAnalysis({ companyId, documentId, documentType }
 
             <div>
               <h3 className="text-lg font-medium mb-2">Summary</h3>
-              <p className="text-gray-700">{analysisResult.validation.summary}</p>
+              <div className="bg-card border shadow-sm rounded-lg p-4">
+                <MarkdownRenderer 
+                  content={analysisResult.validation.summary} 
+                  mode="compact"
+                />
+              </div>
             </div>
 
             <div>
@@ -362,7 +368,13 @@ export default function DocumentAnalysis({ companyId, documentId, documentType }
                     {analysisResult.valuationImpact.impact > 0 ? '+' : ''}{analysisResult.valuationImpact.impact.toFixed(1)}
                   </span>
                 </div>
-                <p className="text-sm text-gray-600">{analysisResult.valuationImpact.description}</p>
+                <div className="mt-2">
+                  <MarkdownRenderer 
+                    content={analysisResult.valuationImpact.description} 
+                    mode="compact" 
+                    className="text-sm text-gray-600"
+                  />
+                </div>
               </div>
             </div>
 
@@ -384,7 +396,8 @@ export default function DocumentAnalysis({ companyId, documentId, documentType }
                           {issue.location && <div className="text-sm">Location: {issue.location}</div>}
                           {issue.recommendation && (
                             <div className="text-sm mt-1">
-                              <span className="font-medium">Recommendation:</span> {issue.recommendation}
+                              <span className="font-medium">Recommendation:</span>{" "}
+                              <MarkdownRenderer content={issue.recommendation} mode="compact" className="inline" />
                             </div>
                           )}
                         </div>
@@ -517,9 +530,11 @@ export function ComprehensiveDocumentAnalysis({ companyId }: { companyId: number
               <h3 className="text-lg font-medium mb-2">Key Recommendations</h3>
               <ul className="space-y-2">
                 {analysisResult.recommendations.map((recommendation, idx) => (
-                  <li key={idx} className="p-3 bg-blue-50 text-blue-800 rounded-md flex items-start space-x-2">
+                  <li key={idx} className="p-3 bg-blue-50 text-blue-800 rounded-md flex items-start">
                     <span className="font-bold mr-2">{idx + 1}.</span>
-                    <span>{recommendation}</span>
+                    <div className="flex-1">
+                      <MarkdownRenderer content={recommendation} mode="compact" />
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -543,7 +558,9 @@ export function ComprehensiveDocumentAnalysis({ companyId }: { companyId: number
                         {doc.validation.score}/100
                       </Badge>
                     </div>
-                    <p className="text-sm text-gray-600 mb-2">{doc.validation.summary}</p>
+                    <div className="text-sm text-gray-600 mb-2">
+                      <MarkdownRenderer content={doc.validation.summary} mode="compact" />
+                    </div>
                     <div className="text-sm">
                       <div className="flex items-center space-x-1 text-gray-500">
                         <TrendingUp className="h-4 w-4" />
