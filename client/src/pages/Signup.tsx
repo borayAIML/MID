@@ -92,14 +92,16 @@ export default function Signup() {
           variant: "destructive", // Using destructive as a workaround for success
         });
 
-        // Navigate to onboarding
-        setTimeout(() => {
-          navigate("/onboarding");
-        }, 1000);
         const responseLogin = await apiRequest("/api/login", {
           method: "POST",
           body: JSON.stringify({ email: data.email, password: data.password }),
         });
+        
+        // Navigate to onboarding
+        setTimeout(() => {
+          navigate("/onboarding");
+        }, 1000);
+
       } else {
         toast({
           title: "Registration failed",
