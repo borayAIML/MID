@@ -6,13 +6,12 @@ import { AIThinkingLoader } from '@/components/ui/animated-loader';
 import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
-
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 
 export default function AiCompanyAnalysis() {
   const { user } = useAuth();
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [companyId, setCompanyId] = useState<number | null>(null);
   const [result, setResult] = useState<{
     companyId: number;
     companyName: string;
@@ -20,39 +19,18 @@ export default function AiCompanyAnalysis() {
     analysis: string;
   } | null>(null);
 
-  useEffect(() => {
-    const fetchCompanyId = async () => {
-      try {
-        const res = await apiRequest('/api/user');
-        setCompanyId(res.companyId); 
-        console.log("Company ID from user data:", res.companyId);
-      } catch (error) {
-        console.error("Error fetching user data:", error);
-      }
-    };
-
-    fetchCompanyId();
-  }, []);
-
-
-  const userId = user?.id;
   // Get companies associated with the authenticated user
   const { data: companies, isLoading: isLoadingCompanies } = useQuery({
-    queryKey: [`/api/users/${userId}/companies`],
+    queryKey: ['/api/companies'],
     queryFn: async () => {
-      const res = await apiRequest(`/api/users/${userId}/companies`);
+      const res = await apiRequest('/api/companies');
       return await res.json();
     },
     enabled: !!user,
   });
 
-  console.log("Companies:",companies);
   // Get first company ID from user data
-  //const companyId = companies && companies.length > 0 ? companies[0].id : null;
-  console.log("Company ID from company analysis:",companyId);
-
-  // const companyIdRaw = localStorage.getItem('companyId');
-  // const companyId = companyIdRaw ? parseInt(companyIdRaw) : null;
+  const companyId = companies && companies.length > 0 ? companies[0].id : null;
 
   const analyzeCompany = async () => {
     if (!companyId) {
@@ -102,9 +80,7 @@ export default function AiCompanyAnalysis() {
               <div className="mb-4 p-4 bg-blue-50 rounded-lg">
                 <h3 className="font-medium">Ready to analyze:</h3>
                 <p className="text-gray-700">
-                  {companies && companies.length > 0 
-                    ? `${companies[0].name} (ID: ${companies[0].id})` 
-                    : 'Company'}
+                  {companies[0].name} (ID: {companies[0].id})
                 </p>
               </div>
             )}
@@ -133,19 +109,37 @@ export default function AiCompanyAnalysis() {
 
           {result && !loading && (
             <div className="mt-4">
-              <h3 className="text-xl font-semibold mb-2">Analysis for {result.companyName}</h3>
-              <div className="text-sm text-muted-foreground mb-4">
-                Analyzed on {new Date(result.timestamp).toLocaleString()}
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+                <div>
+                  <h3 className="text-xl font-semibold">Analysis for {result.companyName}</h3>
+                  <div className="text-sm text-muted-foreground">
+                    Analyzed on {new Date(result.timestamp).toLocaleString()}
+                  </div>
+                </div>
+                <div className="mt-2 md:mt-0">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => navigator.clipboard.writeText(result.analysis)}
+                    className="text-xs"
+                  >
+                    Copy Analysis
+                  </Button>
+                </div>
               </div>
-              <div className="bg-muted p-4 rounded-md whitespace-pre-line">
-                {result.analysis}
+              
+              <div className="bg-card border shadow-sm rounded-lg p-6">
+                <MarkdownRenderer 
+                  content={result.analysis} 
+                  mode="enhanced"
+                />
               </div>
             </div>
           )}
         </CardContent>
         <CardFooter className="flex justify-between">
           <div className="text-sm text-muted-foreground">
-            Using real-time database data and AI analysis
+            Using real-time database data and DeepSeekAI analysis
           </div>
         </CardFooter>
       </Card>
