@@ -163,6 +163,8 @@ export default function BusinessDataWizard({ userData, onComplete }: BusinessDat
           "Content-Type": "application/json"
         }
       });
+
+      console.log("Company creation response:", companyResponse);
       
       if (!companyResponse.ok) {
         console.error("Company creation failed:", await companyResponse.text());
@@ -199,14 +201,14 @@ export default function BusinessDataWizard({ userData, onComplete }: BusinessDat
         return fallbackCompany.id;
       }
       
-      const company = await companyResponse.json();
-      console.log("Company created successfully:", company);
+      //const company = await companyResponse.json();
+      console.log("Company created successfully:", companyResponse);
       
       // Save company ID to state and localStorage
-      localStorage.setItem('companyId', JSON.stringify(company.id));
-      setCompanyId(company.id);
+      localStorage.setItem('companyId', JSON.stringify(companyResponse.id));
+      setCompanyId(companyResponse.id);
       
-      return company.id;
+      return companyResponse.id;
     } catch (error) {
       console.error("Error creating company:", error);
       
