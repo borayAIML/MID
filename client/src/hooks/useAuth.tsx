@@ -119,7 +119,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
       
       // Navigate to the dashboard
-      navigate('/valuation');
+      setTimeout(() => {
+        navigate("/valuation");
+      }, 1500);
     },
     onError: (error: Error) => {
       setError(error.message);

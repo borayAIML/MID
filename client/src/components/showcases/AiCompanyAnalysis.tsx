@@ -24,8 +24,8 @@ export default function AiCompanyAnalysis() {
     const fetchCompanyId = async () => {
       try {
         const res = await apiRequest('/api/user');
-        const data = await res.json(); // if your apiRequest returns a Response object
-        setCompanyId(data.companyId); // <- save the data
+        setCompanyId(res.companyId); 
+        console.log("Company ID from user data:", res.companyId);
       } catch (error) {
         console.error("Error fetching user data:", error);
       }
