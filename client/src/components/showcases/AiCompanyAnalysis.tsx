@@ -28,11 +28,13 @@ export default function AiCompanyAnalysis() {
     enabled: !!user,
   });
 
+  console.log("Companies:",companies);
   // Get first company ID from user data
-  // const companyId = companies && companies.length > 0 ? companies[0].id : null;
+  const companyId = companies && companies.length > 0 ? companies[0].id : null;
+  console.log("Company ID from company analysis:",companyId);
 
-  const companyIdRaw = localStorage.getItem('companyId');
-  const companyId = companyIdRaw ? parseInt(companyIdRaw) : null;
+  // const companyIdRaw = localStorage.getItem('companyId');
+  // const companyId = companyIdRaw ? parseInt(companyIdRaw) : null;
 
   const analyzeCompany = async () => {
     if (!companyId) {
