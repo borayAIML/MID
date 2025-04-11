@@ -494,10 +494,6 @@ export default function BusinessDataWizard({ userData, onComplete }: BusinessDat
         }
       });
       
-      if (!ownerIntentResponse.ok) {
-        const errorText = await ownerIntentResponse.text();
-        throw new Error(`Failed to save owner intent: ${ownerIntentResponse.status} - ${errorText}`);
-      }
       
       toast({
         title: "Success",
@@ -514,10 +510,7 @@ export default function BusinessDataWizard({ userData, onComplete }: BusinessDat
         }
       });
       
-      if (!valuationResponse.ok) {
-        const errorText = await valuationResponse.text();
-        throw new Error(`Failed to generate valuation: ${valuationResponse.status} - ${errorText}`);
-      }
+
       
       toast({
         title: "Success",
