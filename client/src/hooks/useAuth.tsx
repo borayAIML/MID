@@ -66,6 +66,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     onSuccess: (data) => {
       // Update localStorage for compatibility with existing code
       localStorage.setItem('userData', JSON.stringify(data.user));
+      localStorage.setItem('userId', data.user.id.toString());
       if (data.companyId) {
         localStorage.setItem('companyId', data.companyId.toString());
       }
