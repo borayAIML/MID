@@ -488,7 +488,6 @@ export default function MarketAnalysis() {
                   <div className="text-sm text-muted-foreground">
                     Generated on {new Date(result.timestamp).toLocaleString()}
                   </div>
-                  <Badge className="mt-1 bg-blue-100 text-blue-800 hover:bg-blue-200">{result.provider}</Badge>
                 </div>
               </div>
               
@@ -535,7 +534,7 @@ export default function MarketAnalysis() {
         </CardContent>
         <CardFooter className="flex justify-between">
           <div className="text-sm text-muted-foreground">
-            Powered by Perplexity AI with real-time market data
+            Powered by AI with real-time market data
           </div>
         </CardFooter>
       </Card>

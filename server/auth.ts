@@ -208,13 +208,17 @@ export function setupAuth(app: Express) {
     });
   });
 
-  app.get("/api/user", (req, res) => {
+  app.get("/api/user", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ 
         success: false, 
         message: "Not authenticated" 
       });
     }
+    
+    // Get user's companies
+    const companies = await storage.getCompaniesByUserId(req.user!.id);
+    const companyId = companies.length > 0 ? companies[0].id : null;
     
     res.json({
       success: true,
@@ -223,7 +227,8 @@ export function setupAuth(app: Express) {
         email: req.user?.email,
         fullName: req.user?.fullName,
         role: req.user?.role
-      }
+      },
+      companyId
     });
   });
 }

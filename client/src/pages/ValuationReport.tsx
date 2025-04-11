@@ -13,6 +13,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, Printer, ChevronLeft, Share2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {useAuth} from "@/hooks/useAuth";
+
+// Interface for risk flag items
+interface RedFlag {
+  title: string;
+  description: string;
+}
 import { DataExport } from "@/components/ui/data-export";
 import { generatePdf } from "@/lib/pdfGenerator";
 
@@ -23,28 +30,38 @@ type ValuationReportProps = {
 export default function ValuationReport({ companyId: propCompanyId }: ValuationReportProps) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { companyId: authCompanyId } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
   
-  // Try to get companyId from props or localStorage
+  // Try to get companyId from props, auth context, or localStorage (in that priority order)
   const [companyId, setCompanyId] = useState<number | null>(() => {
     if (propCompanyId) return propCompanyId;
+    if (authCompanyId) return authCompanyId;
     const saved = localStorage.getItem('companyId');
     return saved ? JSON.parse(saved) : null;
   });
 
-  // Update localStorage if prop changes
+  // Update state and localStorage if prop or auth context changes
   useEffect(() => {
+    let newCompanyId = null;
+    
     if (propCompanyId) {
-      setCompanyId(propCompanyId);
-      localStorage.setItem('companyId', JSON.stringify(propCompanyId));
+      newCompanyId = propCompanyId;
+    } else if (authCompanyId) {
+      newCompanyId = authCompanyId;
     }
-  }, [propCompanyId]);
+    
+    if (newCompanyId && newCompanyId !== companyId) {
+      setCompanyId(newCompanyId);
+      localStorage.setItem('companyId', JSON.stringify(newCompanyId));
+    }
+  }, [propCompanyId, authCompanyId, companyId]);
 
   const {
     data: company,
     isLoading: isLoadingCompany,
     error: companyError,
-  } = useQuery({
+  } = useQuery<Company>({
     queryKey: ["/api/companies", companyId],
     enabled: !!companyId,
   });
@@ -53,7 +70,7 @@ export default function ValuationReport({ companyId: propCompanyId }: ValuationR
     data: valuation,
     isLoading: isLoadingValuation,
     error: valuationError,
-  } = useQuery({
+  } = useQuery<Valuation>({
     queryKey: ["/api/companies", companyId, "valuation"],
     enabled: !!companyId,
   });
@@ -270,13 +287,13 @@ export default function ValuationReport({ companyId: propCompanyId }: ValuationR
                       </div>
                       
                       <div className="flex items-center mb-4">
-                        {valuation && <RiskScoreChart score={valuation.riskScore} />}
+                        {valuation && typeof valuation.riskScore === 'number' && <RiskScoreChart score={valuation.riskScore} />}
                         <div className="ml-4">
                           <h4 className="text-sm font-medium text-gray-900">
-                            {valuation && getRiskText(valuation.riskScore).label}
+                            {valuation && typeof valuation.riskScore === 'number' && getRiskText(valuation.riskScore).label}
                           </h4>
                           <p className="text-sm text-gray-500">
-                            {valuation && getRiskText(valuation.riskScore).description}
+                            {valuation && typeof valuation.riskScore === 'number' && getRiskText(valuation.riskScore).description}
                           </p>
                         </div>
                       </div>
@@ -295,12 +312,12 @@ export default function ValuationReport({ companyId: propCompanyId }: ValuationR
                     <p className="text-gray-700 mb-4">
                       This valuation is derived from multiple methodologies including EBITDA multiple, 
                       discounted cash flow analysis, revenue multiple, and asset-based calculations. 
-                      The business demonstrates {valuation?.riskScore && valuation.riskScore > 60 ? 'strong' : 
-                      valuation?.riskScore && valuation.riskScore > 40 ? 'moderate' : 'concerning'} 
-                      fundamentals with particular {valuation?.riskScore && valuation.riskScore > 60 ? 'strengths' : 'challenges'} 
-                      in {valuation?.financialHealthScore && valuation.financialHealthScore > 60 ? 'financial health' : 
-                      valuation?.marketPositionScore && valuation.marketPositionScore > 60 ? 'market position' : 
-                      valuation?.operationalEfficiencyScore && valuation.operationalEfficiencyScore > 60 ? 'operational efficiency' : 
+                      The business demonstrates {valuation && typeof valuation.riskScore === 'number' && valuation.riskScore > 60 ? 'strong' : 
+                      valuation && typeof valuation.riskScore === 'number' && valuation.riskScore > 40 ? 'moderate' : 'concerning'} 
+                      fundamentals with particular {valuation && typeof valuation.riskScore === 'number' && valuation.riskScore > 60 ? 'strengths' : 'challenges'} 
+                      in {valuation && typeof valuation.financialHealthScore === 'number' && valuation.financialHealthScore > 60 ? 'financial health' : 
+                      valuation && typeof valuation.marketPositionScore === 'number' && valuation.marketPositionScore > 60 ? 'market position' : 
+                      valuation && typeof valuation.operationalEfficiencyScore === 'number' && valuation.operationalEfficiencyScore > 60 ? 'operational efficiency' : 
                       'debt structure'}.
                     </p>
                     <p className="text-gray-700">
@@ -481,13 +498,13 @@ export default function ValuationReport({ companyId: propCompanyId }: ValuationR
                     <h2 className="text-xl font-bold text-gray-900 mb-4">Risk Assessment</h2>
                     
                     <div className="flex items-center mb-6">
-                      {valuation && <RiskScoreChart score={valuation.riskScore} />}
+                      {valuation && typeof valuation.riskScore === 'number' && <RiskScoreChart score={valuation.riskScore} />}
                       <div className="ml-4">
                         <h4 className="text-sm font-medium text-gray-900">
-                          {valuation && getRiskText(valuation.riskScore).label}
+                          {valuation && typeof valuation.riskScore === 'number' && getRiskText(valuation.riskScore).label}
                         </h4>
                         <p className="text-sm text-gray-500">
-                          {valuation && getRiskText(valuation.riskScore).description}
+                          {valuation && typeof valuation.riskScore === 'number' && getRiskText(valuation.riskScore).description}
                         </p>
                       </div>
                     </div>
@@ -593,9 +610,9 @@ export default function ValuationReport({ companyId: propCompanyId }: ValuationR
                     
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Red Flags & Areas of Concern</h3>
                     
-                    {valuation?.redFlags && valuation.redFlags.length > 0 ? (
+                    {valuation?.redFlags && Array.isArray(valuation.redFlags) && valuation.redFlags.length > 0 ? (
                       <div className="space-y-4">
-                        {valuation.redFlags.map((flag, index) => (
+                        {valuation.redFlags.map((flag: RedFlag | string, index: number) => (
                           <div key={index} className={index === 0 ? "bg-red-50 border-l-4 border-red-400 p-4" : "bg-yellow-50 border-l-4 border-yellow-400 p-4"}>
                             <div className="flex items-start">
                               <div className="flex-shrink-0">
@@ -604,8 +621,12 @@ export default function ValuationReport({ companyId: propCompanyId }: ValuationR
                                 </svg>
                               </div>
                               <div className="ml-3">
-                                <h3 className={`text-sm font-medium ${index === 0 ? 'text-red-800' : 'text-yellow-800'}`}>{flag.title}</h3>
-                                <p className={`mt-1 text-sm ${index === 0 ? 'text-red-700' : 'text-yellow-700'}`}>{flag.description}</p>
+                                <h3 className={`text-sm font-medium ${index === 0 ? 'text-red-800' : 'text-yellow-800'}`}>
+                                  {typeof flag === 'object' && flag?.title ? flag.title : 'Risk Factor'}
+                                </h3>
+                                <p className={`mt-1 text-sm ${index === 0 ? 'text-red-700' : 'text-yellow-700'}`}>
+                                  {typeof flag === 'object' && flag?.description ? flag.description : flag?.toString() || 'No description available'}
+                                </p>
                               </div>
                             </div>
                           </div>
