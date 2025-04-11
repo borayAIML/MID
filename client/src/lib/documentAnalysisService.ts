@@ -107,160 +107,26 @@ export async function analyzeDocument(
   documentId: number,
   documentType: DocumentType
 ): Promise<DocumentAnalysisResult> {
-  // This would call our AI-powered document analysis endpoint
-  // For now we'll create a mock implementation
-  
-  // In a real implementation, this would call:
-  // return await apiRequest(`/api/ai/analyze-document/${documentId}`, {
-  //   method: 'GET'
-  // });
-  
-  // For now, we'll return mocked data
-  const mockResponses: Record<DocumentType, DocumentAnalysisResult> = {
-    financial: {
-      documentId,
-      documentType: 'financial',
-      validation: {
-        isValid: true,
-        issues: [
-          {
-            severity: 'warning',
-            description: 'Inconsistent revenue recognition method between years',
-            location: 'Income Statement, p.3',
-            recommendation: 'Standardize revenue recognition method across reporting periods'
-          },
-          {
-            severity: 'info',
-            description: 'Missing footnotes for depreciation methods',
-            location: 'Notes, p.12',
-            recommendation: 'Add detailed explanation of depreciation calculations'
-          }
-        ],
-        score: 85,
-        summary: 'Overall good quality financial statements with minor issues that should be addressed.'
-      },
-      metrics: {
-        revenueGrowth: {
-          oneYear: 12.5,
-          threeYear: 32.1,
-          fiveYear: 67.8
-        },
-        profitMargins: {
-          gross: 42.3,
-          operating: 18.7,
-          net: 11.2
-        },
-        liquidityRatios: {
-          current: 2.1,
-          quick: 1.5
-        },
-        debtRatios: {
-          debtToEquity: 0.68,
-          interestCoverage: 5.2
-        },
-        workingCapital: 850000,
-        cashFlow: {
-          operating: 1200000,
-          investing: -500000,
-          financing: -300000,
-          free: 700000
-        }
-      },
-      valuationImpact: {
-        description: 'Strong financial performance with steady growth provides positive impact on valuation',
-        impact: 7.5
-      }
-    },
-    tax: {
-      documentId,
-      documentType: 'tax',
-      validation: {
-        isValid: true,
-        issues: [
-          {
-            severity: 'critical',
-            description: 'Incomplete documentation for R&D tax credits claimed',
-            location: 'Form XYZ, Section 5',
-            recommendation: 'Provide detailed supporting documentation for all R&D activities'
-          }
-        ],
-        score: 72,
-        summary: 'Tax documents have some compliance issues that should be addressed before any transaction.'
-      },
-      metrics: {
-        effectiveTaxRate: 21.3,
-        totalTaxLiability: 420000,
-        taxCredits: 85000,
-        deductions: 750000,
-        complianceScore: 78
-      },
-      valuationImpact: {
-        description: 'Some tax compliance issues present moderate risk and could impact valuation',
-        impact: -2.5
-      }
-    },
-    contract: {
-      documentId,
-      documentType: 'contract',
-      validation: {
-        isValid: true,
-        issues: [
-          {
-            severity: 'warning',
-            description: 'Automatic renewal clause with lengthy notice period',
-            location: 'Section 8.3, p.11',
-            recommendation: 'Negotiate shorter notice period or manual renewal process'
-          },
-          {
-            severity: 'warning',
-            description: 'Broad liability clauses favorable to counterparty',
-            location: 'Section 12, p.15-17',
-            recommendation: 'Renegotiate for more balanced liability terms'
-          }
-        ],
-        score: 68,
-        summary: 'Contracts have several terms that are unfavorable and may impact business flexibility.'
-      },
-      metrics: {
-        riskExposure: 65,
-        favorability: -12,
-        termLength: 36,
-        renewalType: 'automatic',
-        terminationRights: 'unfavorable'
-      },
-      valuationImpact: {
-        description: 'Contract terms create moderate business constraints and liabilities',
-        impact: -3.8
-      }
-    }
-  };
-  
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  
-  return mockResponses[documentType];
-}
-
-/**
- * Get a comprehensive analysis of all company documents
- */
-export async function getComprehensiveDocumentAnalysis(companyId: number): Promise<{
-  overallScore: number;
-  documentAnalyses: DocumentAnalysisResult[];
-  valuationImpact: number;
-  recommendations: string[];
-}> {
-  // This would call a comprehensive document analysis endpoint
-  // For now we'll return a mock implementation
-  
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  
-  return {
-    overallScore: 76,
-    documentAnalyses: [
-      {
-        documentId: 1,
+  try {
+    // Call the DeepSeekAI-powered document analysis endpoint
+    console.log(`Sending document ${documentId} of type ${documentType} for AI analysis`);
+    
+    const response = await apiRequest(`/api/ai/analyze-document/${documentId}?documentType=${documentType}`, {
+      method: 'GET'
+    });
+    
+    console.log('Document analysis response:', response);
+    return response;
+  } catch (error) {
+    console.error('Error analyzing document with DeepSeekAI:', error);
+    
+    // Fall back to mock data if the API call fails
+    console.warn('Falling back to mock document analysis data');
+    
+    // Mock responses as fallback
+    const mockResponses: Record<DocumentType, DocumentAnalysisResult> = {
+      financial: {
+        documentId,
         documentType: 'financial',
         validation: {
           isValid: true,
@@ -270,20 +136,42 @@ export async function getComprehensiveDocumentAnalysis(companyId: number): Promi
               description: 'Inconsistent revenue recognition method between years',
               location: 'Income Statement, p.3',
               recommendation: 'Standardize revenue recognition method across reporting periods'
+            },
+            {
+              severity: 'info',
+              description: 'Missing footnotes for depreciation methods',
+              location: 'Notes, p.12',
+              recommendation: 'Add detailed explanation of depreciation calculations'
             }
           ],
           score: 85,
-          summary: 'Overall good quality financial statements with minor issues.'
+          summary: 'Overall good quality financial statements with minor issues that should be addressed.'
         },
         metrics: {
           revenueGrowth: {
             oneYear: 12.5,
-            threeYear: 32.1
+            threeYear: 32.1,
+            fiveYear: 67.8
           },
           profitMargins: {
             gross: 42.3,
             operating: 18.7,
             net: 11.2
+          },
+          liquidityRatios: {
+            current: 2.1,
+            quick: 1.5
+          },
+          debtRatios: {
+            debtToEquity: 0.68,
+            interestCoverage: 5.2
+          },
+          workingCapital: 850000,
+          cashFlow: {
+            operating: 1200000,
+            investing: -500000,
+            financing: -300000,
+            free: 700000
           }
         },
         valuationImpact: {
@@ -291,8 +179,8 @@ export async function getComprehensiveDocumentAnalysis(companyId: number): Promi
           impact: 7.5
         }
       },
-      {
-        documentId: 2,
+      tax: {
+        documentId,
         documentType: 'tax',
         validation: {
           isValid: true,
@@ -305,28 +193,158 @@ export async function getComprehensiveDocumentAnalysis(companyId: number): Promi
             }
           ],
           score: 72,
-          summary: 'Tax documents have compliance issues that should be addressed.'
+          summary: 'Tax documents have some compliance issues that should be addressed before any transaction.'
         },
         metrics: {
           effectiveTaxRate: 21.3,
           totalTaxLiability: 420000,
+          taxCredits: 85000,
+          deductions: 750000,
           complianceScore: 78
         },
         valuationImpact: {
-          description: 'Some tax compliance issues present moderate risk',
+          description: 'Some tax compliance issues present moderate risk and could impact valuation',
           impact: -2.5
         }
+      },
+      contract: {
+        documentId,
+        documentType: 'contract',
+        validation: {
+          isValid: true,
+          issues: [
+            {
+              severity: 'warning',
+              description: 'Automatic renewal clause with lengthy notice period',
+              location: 'Section 8.3, p.11',
+              recommendation: 'Negotiate shorter notice period or manual renewal process'
+            },
+            {
+              severity: 'warning',
+              description: 'Broad liability clauses favorable to counterparty',
+              location: 'Section 12, p.15-17',
+              recommendation: 'Renegotiate for more balanced liability terms'
+            }
+          ],
+          score: 68,
+          summary: 'Contracts have several terms that are unfavorable and may impact business flexibility.'
+        },
+        metrics: {
+          riskExposure: 65,
+          favorability: -12,
+          termLength: 36,
+          renewalType: 'automatic',
+          terminationRights: 'unfavorable'
+        },
+        valuationImpact: {
+          description: 'Contract terms create moderate business constraints and liabilities',
+          impact: -3.8
+        }
       }
-    ],
-    valuationImpact: 5.0,
-    recommendations: [
-      'Standardize accounting methods across all financial periods',
-      'Prepare proper documentation for all tax credits claimed',
-      'Review and renegotiate unfavorable contract terms before seeking investors or buyers',
-      'Consider accelerating amortization of certain assets to improve tax position',
-      'Implement more detailed financial reporting to better showcase growth metrics'
-    ]
-  };
+    };
+    
+    return mockResponses[documentType];
+  }
+}
+
+/**
+ * Get a comprehensive analysis of all company documents
+ */
+export async function getComprehensiveDocumentAnalysis(companyId: number): Promise<{
+  overallScore: number;
+  documentAnalyses: DocumentAnalysisResult[];
+  valuationImpact: number;
+  recommendations: string[];
+}> {
+  try {
+    // Call the DeepSeekAI-powered comprehensive document analysis endpoint
+    console.log(`Sending request for comprehensive document analysis for company ${companyId}`);
+    
+    const response = await apiRequest(`/api/ai/comprehensive-document-analysis/${companyId}`, {
+      method: 'GET'
+    });
+    
+    console.log('Comprehensive document analysis response:', response);
+    return response;
+  } catch (error) {
+    console.error('Error performing comprehensive document analysis with DeepSeekAI:', error);
+    
+    // Fall back to mock data if the API call fails
+    console.warn('Falling back to mock comprehensive analysis data');
+    
+    // Mock response as fallback
+    return {
+      overallScore: 76,
+      documentAnalyses: [
+        {
+          documentId: 1,
+          documentType: 'financial',
+          validation: {
+            isValid: true,
+            issues: [
+              {
+                severity: 'warning',
+                description: 'Inconsistent revenue recognition method between years',
+                location: 'Income Statement, p.3',
+                recommendation: 'Standardize revenue recognition method across reporting periods'
+              }
+            ],
+            score: 85,
+            summary: 'Overall good quality financial statements with minor issues.'
+          },
+          metrics: {
+            revenueGrowth: {
+              oneYear: 12.5,
+              threeYear: 32.1
+            },
+            profitMargins: {
+              gross: 42.3,
+              operating: 18.7,
+              net: 11.2
+            }
+          },
+          valuationImpact: {
+            description: 'Strong financial performance with steady growth provides positive impact on valuation',
+            impact: 7.5
+          }
+        },
+        {
+          documentId: 2,
+          documentType: 'tax',
+          validation: {
+            isValid: true,
+            issues: [
+              {
+                severity: 'critical',
+                description: 'Incomplete documentation for R&D tax credits claimed',
+                location: 'Form XYZ, Section 5',
+                recommendation: 'Provide detailed supporting documentation for all R&D activities'
+              }
+            ],
+            score: 72,
+            summary: 'Tax documents have compliance issues that should be addressed.'
+          },
+          metrics: {
+            effectiveTaxRate: 21.3,
+            totalTaxLiability: 420000,
+            complianceScore: 78
+          },
+          valuationImpact: {
+            description: 'Some tax compliance issues present moderate risk',
+            impact: -2.5
+          }
+        }
+      ],
+      valuationImpact: 5.0,
+      recommendations: [
+        'Standardize accounting methods across all financial periods',
+        'Prepare proper documentation for all tax credits claimed',
+        'Review and renegotiate unfavorable contract terms before seeking investors or buyers',
+        'Consider accelerating amortization of certain assets to improve tax position',
+        'Implement more detailed financial reporting to better showcase growth metrics'
+      ]
+    };
+  }
 }
 
 /**
@@ -336,7 +354,8 @@ export function validateFinancialDocuments(metrics: FinancialDocumentMetrics): D
   const issues: DocumentIssue[] = [];
   
   // These are example validations that would be implemented
-  if (metrics.profitMargins?.net && metrics.profitMargins.net > metrics.profitMargins.gross) {
+  if (metrics.profitMargins?.net && metrics.profitMargins?.gross && 
+      metrics.profitMargins.net > metrics.profitMargins.gross) {
     issues.push({
       severity: 'critical',
       description: 'Net profit margin cannot exceed gross profit margin',

@@ -294,31 +294,44 @@ function formatChatResponse(answer: string): ChatResponse {
 
 export async function sendChatMessage(messages: ChatMessage[]): Promise<ChatResponse> {
   try {
-    // Extract the user's message (last message if it's a user)
-    const userMessages = messages.filter(msg => msg.role === "user");
-    if (userMessages.length === 0) {
-      throw new Error("No user message found");
-    }
+    console.log("Sending chat messages to DeepSeekAI API");
     
-    const userQuery = userMessages[userMessages.length - 1].content;
+    // Make the API request to our backend endpoint that uses DeepSeekAI
+    const response = await apiRequest('/api/chat/completions', {
+      method: 'POST',
+      body: JSON.stringify({ messages }),
+    });
     
-    // Find the best answer from our knowledge base
-    const answer = findBestAnswer(userQuery);
-    
-    // Format the response
-    const response = formatChatResponse(answer);
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
+    // The server endpoint already returns the response in the correct format
     return response;
   } catch (error) {
     console.error("Error processing chat message:", error);
     
-    // Return a formatted error response
-    return formatChatResponse(
-      "I apologize, but I'm having trouble processing your request at the moment. Please try again or contact our support team for assistance."
-    );
+    // If API call fails, fall back to local knowledge base
+    try {
+      // Extract the user's message (last message if it's a user)
+      const userMessages = messages.filter(msg => msg.role === "user");
+      if (userMessages.length === 0) {
+        throw new Error("No user message found");
+      }
+      
+      const userQuery = userMessages[userMessages.length - 1].content;
+      
+      // Find the best answer from our knowledge base
+      const answer = findBestAnswer(userQuery);
+      
+      // Format the response with a fallback note
+      return formatChatResponse(
+        answer + " (Note: I'm currently operating with limited capabilities as our AI service is experiencing issues.)"
+      );
+    } catch (fallbackError) {
+      console.error("Error in fallback response:", fallbackError);
+      
+      // Return a formatted error response
+      return formatChatResponse(
+        "I apologize, but I'm having trouble processing your request at the moment. Please try again or contact our support team for assistance."
+      );
+    }
   }
 }
 

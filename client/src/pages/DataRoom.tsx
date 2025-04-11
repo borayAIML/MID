@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 import { Valuation, Company, Document } from "@shared/schema";
 import ValuationChart from "@/components/charts/ValuationChart";
@@ -38,28 +39,46 @@ type DataRoomProps = {
 export default function DataRoom({ companyId: propCompanyId }: DataRoomProps) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user, companyId: authCompanyId } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
   
-  // Try to get companyId from props or localStorage
+  // Try to get companyId from auth context first, then props, then localStorage
+  // This prioritizes the current authenticated user's company
   const [companyId, setCompanyId] = useState<number | null>(() => {
+    if (authCompanyId) return authCompanyId;
     if (propCompanyId) return propCompanyId;
-    const saved = localStorage.getItem('companyId');
-    return saved ? JSON.parse(saved) : null;
+    
+    // Only use localStorage as last resort and when authenticated
+    if (user) {
+      const saved = localStorage.getItem('companyId');
+      return saved ? JSON.parse(saved) : null;
+    }
+    
+    return null;
   });
 
+  // Update companyId when auth context changes
+  useEffect(() => {
+    if (authCompanyId) {
+      setCompanyId(authCompanyId);
+      // Update localStorage with the authenticated user's company
+      localStorage.setItem('companyId', JSON.stringify(authCompanyId));
+    }
+  }, [authCompanyId]);
+  
   // Update localStorage if prop changes
   useEffect(() => {
-    if (propCompanyId) {
+    if (propCompanyId && user) {
       setCompanyId(propCompanyId);
       localStorage.setItem('companyId', JSON.stringify(propCompanyId));
     }
-  }, [propCompanyId]);
+  }, [propCompanyId, user]);
 
   const {
     data: company,
     isLoading: isLoadingCompany,
     error: companyError,
-  } = useQuery({
+  } = useQuery<Company>({
     queryKey: [`/api/companies/${companyId}`],
     enabled: !!companyId,
   });
@@ -68,7 +87,7 @@ export default function DataRoom({ companyId: propCompanyId }: DataRoomProps) {
     data: valuation,
     isLoading: isLoadingValuation,
     error: valuationError,
-  } = useQuery({
+  } = useQuery<Valuation>({
     queryKey: [`/api/companies/${companyId}/valuation`],
     enabled: !!companyId,
   });
@@ -77,7 +96,7 @@ export default function DataRoom({ companyId: propCompanyId }: DataRoomProps) {
     data: documents,
     isLoading: isLoadingDocuments,
     error: documentsError,
-  } = useQuery({
+  } = useQuery<Document[]>({
     queryKey: [`/api/companies/${companyId}/documents`],
     enabled: !!companyId,
   });
@@ -121,11 +140,13 @@ export default function DataRoom({ companyId: propCompanyId }: DataRoomProps) {
     }
     
     try {
-      await generatePdf(company, valuation);
-      toast({
-        title: "Success",
-        description: "Report downloaded successfully.",
-      });
+      if (company && valuation) {
+        await generatePdf(company as Company, valuation as Valuation);
+        toast({
+          title: "Success",
+          description: "Report downloaded successfully.",
+        });
+      }
     } catch (error) {
       console.error("Error generating PDF:", error);
       let errorMessage = "Failed to generate report.";
@@ -502,7 +523,14 @@ export default function DataRoom({ companyId: propCompanyId }: DataRoomProps) {
                               </span>
                             </div>
                           </div>
-                          <BenchmarkChart value={14} average={18} maxValue={30} color="blue" />
+                          <BenchmarkChart 
+                            industry="Industry"
+                            value={14} 
+                            average={18} 
+                            label="Revenue Growth Rate" 
+                            unit="%" 
+                            higher_is_better={true} 
+                          />
                         </div>
                         
                         <div>
@@ -521,7 +549,14 @@ export default function DataRoom({ companyId: propCompanyId }: DataRoomProps) {
                               </span>
                             </div>
                           </div>
-                          <BenchmarkChart value={22} average={17} maxValue={30} color="green" />
+                          <BenchmarkChart 
+                            industry="Industry"
+                            value={22} 
+                            average={17} 
+                            label="Profit Margin" 
+                            unit="%" 
+                            higher_is_better={true} 
+                          />
                         </div>
                         
                         <div>
@@ -540,7 +575,14 @@ export default function DataRoom({ companyId: propCompanyId }: DataRoomProps) {
                               </span>
                             </div>
                           </div>
-                          <BenchmarkChart value={42} average={68} maxValue={100} color="red" />
+                          <BenchmarkChart 
+                            industry="Industry"
+                            value={42} 
+                            average={68} 
+                            label="Digital Transformation Index" 
+                            unit="" 
+                            higher_is_better={true} 
+                          />
                         </div>
                       </div>
                     </CardContent>
