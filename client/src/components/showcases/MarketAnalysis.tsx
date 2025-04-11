@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -6,9 +6,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AIThinkingLoader } from '@/components/ui/animated-loader';
 import { apiRequest } from '@/lib/queryClient';
-import { gicsSectors, getIndustryGroupsBySectorId } from '@shared/gicsSectors';
+import { gicsSectors, getIndustryGroupsBySectorId, getSectorById } from '@shared/gicsSectors';
+import { useAuth } from '@/hooks/useAuth';
+import { useQuery } from '@tanstack/react-query';
 
 export default function MarketAnalysis() {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     sector: '',
     industryGroup: '',
@@ -28,6 +31,59 @@ export default function MarketAnalysis() {
     provider: string;
   } | null>(null);
   const [industryGroups, setIndustryGroups] = useState<{ id: string; name: string }[]>([]);
+  
+  // Get companies associated with the authenticated user
+  const { data: companies, isLoading: isLoadingCompanies } = useQuery({
+    queryKey: ['/api/companies'],
+    queryFn: async () => {
+      const res = await apiRequest('/api/companies');
+      return await res.json();
+    },
+    enabled: !!user,
+  });
+  
+  // Pre-populate form with company data when available
+  useEffect(() => {
+    if (companies && companies.length > 0) {
+      const company = companies[0];
+      
+      // Set company name
+      const companyName = company.name || '';
+      
+      // Set location if available from company data
+      const location = company.location || company.country || '';
+      
+      // Set sector if available from company data
+      let sectorName = '';
+      let industryGroupName = '';
+      
+      if (company.sectorId) {
+        const sector = getSectorById(company.sectorId);
+        if (sector) {
+          sectorName = sector.name;
+          
+          // If company has industry group, set that too
+          if (company.industryGroupId) {
+            const groups = getIndustryGroupsBySectorId(company.sectorId);
+            setIndustryGroups(groups);
+            
+            const group = groups.find(g => g.id === company.industryGroupId);
+            if (group) {
+              industryGroupName = group.name;
+            }
+          }
+        }
+      }
+      
+      // Update form data with company information
+      setFormData({
+        sector: sectorName,
+        industryGroup: industryGroupName,
+        companyName: companyName,
+        location: location
+      });
+    }
+  }, [companies]);
   
   // Handle sector selection change
   const handleSectorChange = (value: string) => {
@@ -222,7 +278,7 @@ export default function MarketAnalysis() {
         </CardContent>
         <CardFooter className="flex justify-between">
           <div className="text-sm text-muted-foreground">
-            Powered by Perplexity AI with real-time market data
+            Powered by AI with real-time market data
           </div>
         </CardFooter>
       </Card>

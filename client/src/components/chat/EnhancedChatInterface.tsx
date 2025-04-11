@@ -11,6 +11,9 @@ import { sendLocalChatMessage } from "@/lib/localChatService";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from 'framer-motion';
 import { EmiliaPersonality, detectMoodFromMessage, EmiliaPersonalityType } from './EmiliaPersonality';
+import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 interface EnhancedChatInterfaceProps {
   title?: string;
@@ -34,13 +37,57 @@ export function EnhancedChatInterface({
   contextualResponses = true
 }: EnhancedChatInterfaceProps) {
   const [inputValue, setInputValue] = useState("");
+  const { user } = useAuth();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+  const [currentMood, setCurrentMood] = useState<EmiliaPersonalityType>('neutral');
+
+  // Get company data for the authenticated user
+  interface Company {
+    id: number;
+    name: string;
+    industry: string;
+    description?: string;
+  }
+  
+  const { data: companies, isLoading: isLoadingCompanies } = useQuery<Company[]>({
+    queryKey: ['/api/companies'],
+    // Use the default queryFn
+    enabled: !!user,
+  });
+  
+  // Enhance system message with company data if available
+  const [systemMessage, setSystemMessage] = useState(initialSystemMessage);
+  
+  useEffect(() => {
+    if (companies && Array.isArray(companies) && companies.length > 0) {
+      const company = companies[0];
+      const enhancedMessage = `${initialSystemMessage} 
+You're chatting with ${user?.fullName || user?.email || 'the owner'} of ${company.name}. 
+Their company operates in the ${company.industry || 'business'} industry.`;
+      setSystemMessage(enhancedMessage);
+    }
+  }, [companies, user, initialSystemMessage]);
+
   // Only start with a system message to follow Perplexity API requirements
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "system" as const,
-      content: initialSystemMessage
+      content: systemMessage
     }
   ]);
+  
+  // Update messages when system message changes
+  useEffect(() => {
+    setMessages(prev => [
+      {
+        role: "system" as const,
+        content: systemMessage
+      },
+      ...prev.filter(msg => msg.role !== "system")
+    ]);
+  }, [systemMessage]);
+  
   // Store display messages separately for UI rendering
   const [displayMessages, setDisplayMessages] = useState<ChatMessage[]>([
     {
@@ -49,9 +96,6 @@ export function EnhancedChatInterface({
     }
   ]);
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
-  const [currentMood, setCurrentMood] = useState<EmiliaPersonalityType>('neutral');
   
   useEffect(() => {
     // Scroll to bottom whenever display messages change

@@ -174,8 +174,49 @@ export async function processLocalChat(messages: ChatMessage[]): Promise<string>
     return "Hello! I'm Emilia, your M&A assistant. How can I help you today?";
   }
   
+  // Extract user and company context from system message if available
+  const systemMessage = messages.find(msg => msg.role === "system");
+  let userContext = "";
+  let companyContext = "";
+  
+  if (systemMessage) {
+    const systemContent = systemMessage.content;
+    // Check if system message contains company information
+    if (systemContent.includes("You're chatting with")) {
+      const contextLines = systemContent.split('\n').filter(line => 
+        line.includes("You're chatting with") || 
+        line.includes("Their company operates")
+      );
+      
+      userContext = contextLines.find(line => line.includes("You're chatting with")) || "";
+      companyContext = contextLines.find(line => line.includes("Their company operates")) || "";
+    }
+  }
+  
   const lastUserMessage = userMessages[userMessages.length - 1].content;
-  return generateResponse(lastUserMessage);
+  const response = generateResponse(lastUserMessage);
+  
+  // If we have context, personalize the response
+  if (userContext || companyContext) {
+    // For general questions, add a personalized touch
+    if (response.includes("I can answer questions about M&A") || 
+        response.includes("Hello! I'm Emilia")) {
+      return response + "\n\n" + 
+        (userContext ? "I see you're associated with a company in our system. " : "") + 
+        (companyContext ? "I can provide specific insights for your industry if you'd like." : "");
+    }
+    
+    // For industry-specific questions, add context
+    if (companyContext && 
+        (lastUserMessage.toLowerCase().includes("industry") || 
+         lastUserMessage.toLowerCase().includes("market") || 
+         lastUserMessage.toLowerCase().includes("trends"))) {
+      return response + "\n\n" + 
+        "Based on your company profile, I can provide more customized industry insights if you'd like to explore that further.";
+    }
+  }
+  
+  return response;
 }
 
 // Function to be used by the chat interface

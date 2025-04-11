@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AIThinkingLoader } from '@/components/ui/animated-loader';
 import { apiRequest } from '@/lib/queryClient';
+import { useAuth } from '@/hooks/useAuth';
+import { useQuery } from '@tanstack/react-query';
 
 export default function AiCompanyAnalysis() {
-  const [companyId, setCompanyId] = useState<string>('1'); // Default to company ID 1
+  const { user } = useAuth();
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{
@@ -17,14 +18,32 @@ export default function AiCompanyAnalysis() {
     analysis: string;
   } | null>(null);
 
+  // Get companies associated with the authenticated user
+  const { data: companies, isLoading: isLoadingCompanies } = useQuery({
+    queryKey: ['/api/companies'],
+    queryFn: async () => {
+      const res = await apiRequest('/api/companies');
+      return await res.json();
+    },
+    enabled: !!user,
+  });
+
+  // Get first company ID from user data
+  const companyId = companies && companies.length > 0 ? companies[0].id : null;
+
   const analyzeCompany = async () => {
+    if (!companyId) {
+      setError("No company found for your account. Please create a company first.");
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     try {
       const data = await apiRequest('/api/ai/analyze-company', {
         method: 'POST',
         body: JSON.stringify({ 
-          companyId: parseInt(companyId) 
+          companyId: companyId 
         })
       });
       setResult(data);
@@ -46,21 +65,31 @@ export default function AiCompanyAnalysis() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex space-x-2 mb-4">
-            <Input
-              type="number"
-              value={companyId}
-              onChange={(e) => setCompanyId(e.target.value)}
-              placeholder="Enter Company ID"
-              className="w-40"
-              min="1"
-            />
+          <div className="mb-4">
+            {isLoadingCompanies ? (
+              <div className="text-sm text-gray-500">Loading your company data...</div>
+            ) : !companyId ? (
+              <Alert variant="destructive" className="mb-4">
+                <AlertTitle>No Company Found</AlertTitle>
+                <AlertDescription>
+                  You need to create a company first. Please go to the Business Data Wizard to set up your company.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+                <h3 className="font-medium">Ready to analyze:</h3>
+                <p className="text-gray-700">
+                  {companies[0].name} (ID: {companies[0].id})
+                </p>
+              </div>
+            )}
+            
             <Button 
               onClick={analyzeCompany} 
-              disabled={loading || !companyId}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              disabled={loading || !companyId || isLoadingCompanies}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 w-full"
             >
-              Analyze Company
+              Analyze My Company
             </Button>
           </div>
 
@@ -91,7 +120,7 @@ export default function AiCompanyAnalysis() {
         </CardContent>
         <CardFooter className="flex justify-between">
           <div className="text-sm text-muted-foreground">
-            Using real-time database data and OpenAI analysis
+            Using real-time database data and AI analysis
           </div>
         </CardFooter>
       </Card>

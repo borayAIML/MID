@@ -277,6 +277,22 @@ export default function Navigation({ isLoggedIn: propIsLoggedIn }: NavigationPro
                             Buyer Matches
                           </div>
                         </Link>
+                        <Link href="/emilia-showcase">
+                          <div className="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 cursor-pointer flex items-center">
+                            <span>Emilia AI Assistant</span>
+                            <span className="ml-1 text-[10px] bg-green-100 text-green-700 px-1 rounded">
+                              New
+                            </span>
+                          </div>
+                        </Link>
+                        <Link href="/ai-test">
+                          <div className="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 cursor-pointer flex items-center">
+                            <span>AI Analysis Tools</span>
+                            <span className="ml-1 text-[10px] bg-purple-100 text-purple-700 px-1 rounded">
+                              Beta
+                            </span>
+                          </div>
+                        </Link>
                       </div>
                       <div className="py-1">
                         <Link href="/profile">
@@ -490,6 +506,26 @@ export default function Navigation({ isLoggedIn: propIsLoggedIn }: NavigationPro
                             <SheetClose asChild>
                               <div className="text-gray-700 hover:text-indigo-700 hover:bg-indigo-50 px-3 py-2 rounded-md transition-colors">
                                 Buyer Matches
+                              </div>
+                            </SheetClose>
+                          </Link>
+                          <Link href="/emilia-showcase">
+                            <SheetClose asChild>
+                              <div className="text-gray-700 hover:text-indigo-700 hover:bg-indigo-50 px-3 py-2 rounded-md transition-colors flex justify-between items-center">
+                                <span>Emilia AI Assistant</span>
+                                <span className="text-[10px] bg-green-100 text-green-700 px-1 rounded">
+                                  New
+                                </span>
+                              </div>
+                            </SheetClose>
+                          </Link>
+                          <Link href="/ai-test">
+                            <SheetClose asChild>
+                              <div className="text-gray-700 hover:text-indigo-700 hover:bg-indigo-50 px-3 py-2 rounded-md transition-colors flex justify-between items-center">
+                                <span>AI Analysis Tools</span>
+                                <span className="text-[10px] bg-purple-100 text-purple-700 px-1 rounded">
+                                  Beta
+                                </span>
                               </div>
                             </SheetClose>
                           </Link>
