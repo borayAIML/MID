@@ -7,10 +7,12 @@ import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 
+
 export default function AiCompanyAnalysis() {
   const { user } = useAuth();
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [companyId, setCompanyId] = useState<number | null>(null);
   const [result, setResult] = useState<{
     companyId: number;
     companyName: string;
@@ -18,11 +20,27 @@ export default function AiCompanyAnalysis() {
     analysis: string;
   } | null>(null);
 
+  useEffect(() => {
+    const fetchCompanyId = async () => {
+      try {
+        const res = await apiRequest('/api/user');
+        const data = await res.json(); // if your apiRequest returns a Response object
+        setCompanyId(data.companyId); // <- save the data
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      }
+    };
+
+    fetchCompanyId();
+  }, []);
+
+
+  const userId = user?.id;
   // Get companies associated with the authenticated user
   const { data: companies, isLoading: isLoadingCompanies } = useQuery({
-    queryKey: ['/api/companies'],
+    queryKey: [`/api/users/${userId}/companies`],
     queryFn: async () => {
-      const res = await apiRequest('/api/companies');
+      const res = await apiRequest(`/api/users/${userId}/companies`);
       return await res.json();
     },
     enabled: !!user,
@@ -30,7 +48,7 @@ export default function AiCompanyAnalysis() {
 
   console.log("Companies:",companies);
   // Get first company ID from user data
-  const companyId = companies && companies.length > 0 ? companies[0].id : null;
+  //const companyId = companies && companies.length > 0 ? companies[0].id : null;
   console.log("Company ID from company analysis:",companyId);
 
   // const companyIdRaw = localStorage.getItem('companyId');
