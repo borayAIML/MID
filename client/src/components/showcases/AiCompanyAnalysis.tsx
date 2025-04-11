@@ -102,7 +102,7 @@ export default function AiCompanyAnalysis() {
               <div className="mb-4 p-4 bg-blue-50 rounded-lg">
                 <h3 className="font-medium">Ready to analyze:</h3>
                 <p className="text-gray-700">
-                  {companies[0].name} (ID: {companies[0].id})
+                  {companies[0].name ? companies[0].name : 'Company'} (ID: {companies[0].id ? companies[0].id : 'N/A'})
                 </p>
               </div>
             )}
