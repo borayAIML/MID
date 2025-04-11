@@ -63,12 +63,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         companyId: response.companyId
       };
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       // Update localStorage for compatibility with existing code
       localStorage.setItem('userData', JSON.stringify(data.user));
       localStorage.setItem('userId', data.user.id.toString());
-      if (data.companyId) {
-        localStorage.setItem('companyId', data.companyId.toString());
+      // if (data.companyId) {
+      //   localStorage.setItem('companyId', data.companyId.toString());
+      // }
+      const company = await apiRequest(`/api/users/${data.user.id}/companies`, { method: 'GET' });
+
+      if (company && company.id) {
+        localStorage.setItem('companyId', company.id.toString());
+      } else {
+        console.warn("No company found for user.");
       }
       
       // Invalidate and refetch the auth query
