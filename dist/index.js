@@ -14,8 +14,8 @@ import { createServer } from "http";
 import { eq } from "drizzle-orm";
 
 // server/database.ts
-import { drizzle } from "drizzle-orm/neon-serverless";
-import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/node-postgres";
+import pg from "pg";
 
 // shared/schema.ts
 var schema_exports = {};
@@ -65,7 +65,7 @@ var companies = pgTable("companies", {
   userId: integer("user_id").notNull().references(() => users.id),
   name: text("name").notNull(),
   website: text("website"),
-  uniqueId: text("unique_id").notNull().unique(),
+  uniqueId: integer("unique_id").notNull().unique(),
   // Unique ID based on company name and domain
   sector: text("sector").notNull(),
   industryGroup: text("industry_group"),
@@ -217,15 +217,20 @@ var insertBuyerMatchSchema = createInsertSchema(buyerMatches).omit({
 });
 
 // server/database.ts
+var { Pool } = pg;
 var dbConnectionSuccessful = false;
 var db;
 async function initializeDatabase() {
   try {
     console.log("Checking database connection...");
-    const sql = neon(process.env.DATABASE_URL);
-    const result = await sql`SELECT NOW()`;
-    console.log("Database connected successfully:", result[0].now);
-    db = drizzle(sql, { schema: schema_exports });
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL
+    });
+    const client = await pool.connect();
+    const result = await client.query("SELECT NOW()");
+    console.log("Database connected successfully:", result.rows[0].now);
+    client.release();
+    db = drizzle(pool, { schema: schema_exports });
     dbConnectionSuccessful = true;
     return true;
   } catch (error) {
@@ -271,8 +276,15 @@ var PgStorage = class {
     return results.length > 0 ? results[0] : void 0;
   }
   async createUser(user) {
-    const result = await db.insert(users).values(user).returning();
-    return result[0];
+    try {
+      const result = await db.insert(users).values(user).returning();
+      console.log("Attempted to insert user:", user);
+      console.log("Insert result:", result);
+      return result[0];
+    } catch (err) {
+      console.error("Error inserting user:", err);
+      throw err;
+    }
   }
   // Company methods
   async getCompany(id) {
@@ -459,6 +471,14 @@ var MemStorage = class {
     this.users.set(defaultUser.id, defaultUser);
     this.users.set(adminUser.id, adminUser);
     const defaultCompany = {
+      uniqueId: 1,
+      // ✅ Added
+      website: null,
+      // ✅ Added
+      industryGroup: null,
+      // ✅ Added
+      aiAnalyzed: false,
+      // ✅ Added
       id: 1,
       userId: 1,
       name: "Example Business",
@@ -472,13 +492,13 @@ var MemStorage = class {
     const defaultValuation = {
       id: 1,
       companyId: 1,
-      valuationMin: 95e4,
-      valuationMedian: 12e5,
-      valuationMax: 145e4,
-      ebitdaMultiple: 5.2,
-      discountedCashFlow: 125e4,
-      revenueMultiple: 2.1,
-      assetBased: 98e4,
+      valuationMin: "950000",
+      valuationMedian: "1200000",
+      valuationMax: "1450000",
+      ebitdaMultiple: "5.2",
+      discountedCashFlow: "1250000",
+      revenueMultiple: "2.1",
+      assetBased: "980000",
       riskScore: 65,
       financialHealthScore: 70,
       marketPositionScore: 65,
@@ -528,7 +548,14 @@ var MemStorage = class {
   async createCompany(insertCompany) {
     const id = this.currentCompanyId++;
     const now = /* @__PURE__ */ new Date();
-    const company = { ...insertCompany, id, createdAt: now };
+    const company = {
+      ...insertCompany,
+      website: insertCompany.website ?? null,
+      industryGroup: insertCompany.industryGroup ?? null,
+      aiAnalyzed: insertCompany.aiAnalyzed ?? false,
+      id,
+      createdAt: now
+    };
     this.companies.set(id, company);
     return company;
   }
@@ -544,7 +571,16 @@ var MemStorage = class {
   async createFinancial(insertFinancial) {
     const id = this.currentFinancialId++;
     const now = /* @__PURE__ */ new Date();
-    const financial = { ...insertFinancial, id, createdAt: now };
+    const financial = {
+      ...insertFinancial,
+      revenueCurrent: insertFinancial.revenueCurrent ?? null,
+      revenuePrevious: insertFinancial.revenuePrevious ?? null,
+      revenueTwoYearsAgo: insertFinancial.revenueTwoYearsAgo ?? null,
+      ebitda: insertFinancial.ebitda ?? null,
+      netMargin: insertFinancial.netMargin ?? null,
+      id,
+      createdAt: now
+    };
     this.financials.set(id, financial);
     return financial;
   }
@@ -560,7 +596,14 @@ var MemStorage = class {
   async createEmployee(insertEmployee) {
     const id = this.currentEmployeeId++;
     const now = /* @__PURE__ */ new Date();
-    const employee = { ...insertEmployee, id, createdAt: now };
+    const employee = {
+      ...insertEmployee,
+      count: insertEmployee.count ?? null,
+      digitalSystems: insertEmployee.digitalSystems ?? [],
+      otherSystemDetails: insertEmployee.otherSystemDetails ?? null,
+      id,
+      createdAt: now
+    };
     this.employees.set(id, employee);
     return employee;
   }
@@ -592,7 +635,14 @@ var MemStorage = class {
   async createTechnology(insertTechnology) {
     const id = this.currentTechnologyId++;
     const now = /* @__PURE__ */ new Date();
-    const technology2 = { ...insertTechnology, id, createdAt: now };
+    const technology2 = {
+      ...insertTechnology,
+      id,
+      transformationLevel: insertTechnology.transformationLevel ?? null,
+      technologiesUsed: Array.isArray(insertTechnology.technologiesUsed) ? insertTechnology.technologiesUsed : [],
+      techInvestmentPercentage: insertTechnology.techInvestmentPercentage ?? null,
+      createdAt: now
+    };
     this.technologies.set(id, technology2);
     return technology2;
   }
@@ -608,7 +658,13 @@ var MemStorage = class {
   async createOwnerIntent(insertOwnerIntent) {
     const id = this.currentOwnerIntentId++;
     const now = /* @__PURE__ */ new Date();
-    const ownerIntent2 = { ...insertOwnerIntent, id, createdAt: now };
+    const ownerIntent2 = {
+      ...insertOwnerIntent,
+      idealOutcome: insertOwnerIntent.idealOutcome ?? null,
+      valuationExpectations: insertOwnerIntent.valuationExpectations ?? null,
+      id,
+      createdAt: now
+    };
     this.ownerIntents.set(id, ownerIntent2);
     return ownerIntent2;
   }
@@ -624,7 +680,24 @@ var MemStorage = class {
   async createValuation(insertValuation) {
     const id = this.currentValuationId++;
     const now = /* @__PURE__ */ new Date();
-    const valuation = { ...insertValuation, id, createdAt: now };
+    const valuation = {
+      ...insertValuation,
+      valuationMin: insertValuation.valuationMin ?? null,
+      valuationMedian: insertValuation.valuationMedian ?? null,
+      valuationMax: insertValuation.valuationMax ?? null,
+      ebitdaMultiple: insertValuation.ebitdaMultiple ?? null,
+      discountedCashFlow: insertValuation.discountedCashFlow ?? null,
+      revenueMultiple: insertValuation.revenueMultiple ?? null,
+      assetBased: insertValuation.assetBased ?? null,
+      riskScore: insertValuation.riskScore,
+      financialHealthScore: insertValuation.financialHealthScore,
+      marketPositionScore: insertValuation.marketPositionScore,
+      operationalEfficiencyScore: insertValuation.operationalEfficiencyScore,
+      debtStructureScore: insertValuation.debtStructureScore,
+      redFlags: Array.isArray(insertValuation.redFlags) ? insertValuation.redFlags : [],
+      id,
+      createdAt: now
+    };
     this.valuations.set(id, valuation);
     return valuation;
   }
@@ -640,7 +713,12 @@ var MemStorage = class {
   async createRecommendation(insertRecommendation) {
     const id = this.currentRecommendationId++;
     const now = /* @__PURE__ */ new Date();
-    const recommendation = { ...insertRecommendation, id, createdAt: now };
+    const recommendation = {
+      ...insertRecommendation,
+      suggestions: Array.isArray(insertRecommendation.suggestions) ? insertRecommendation.suggestions : [],
+      id,
+      createdAt: now
+    };
     this.recommendations.set(id, recommendation);
     return recommendation;
   }
@@ -656,12 +734,23 @@ var MemStorage = class {
   async createBuyerMatch(insertBuyerMatch) {
     const id = this.currentBuyerMatchId++;
     const now = /* @__PURE__ */ new Date();
-    const buyerMatch = { ...insertBuyerMatch, id, createdAt: now };
+    const buyerMatch = {
+      ...insertBuyerMatch,
+      tags: Array.isArray(insertBuyerMatch.tags) ? insertBuyerMatch.tags : [],
+      id,
+      createdAt: now
+    };
     this.buyerMatches.set(id, buyerMatch);
     return buyerMatch;
   }
 };
-var storage = dbConnectionSuccessful ? new PgStorage() : new MemStorage();
+var storageInstance;
+function getStorage() {
+  if (!storageInstance) {
+    storageInstance = dbConnectionSuccessful ? new PgStorage() : new MemStorage();
+  }
+  return storageInstance;
+}
 
 // server/routes.ts
 import multer from "multer";
@@ -700,6 +789,7 @@ var upload = multer({
   }
 });
 async function registerRoutes(app2) {
+  const storage = getStorage();
   const handleZodError = (error, res) => {
     if (error instanceof ZodError) {
       const validationError = fromZodError(error);
@@ -710,6 +800,7 @@ async function registerRoutes(app2) {
   app2.post("/api/auth/signup", async (req, res) => {
     try {
       const { fullName, email, password, companyName } = req.body;
+      console.log("Signup request body:", req.body);
       const existingUserByEmail = await storage.getUserByEmail(email);
       if (existingUserByEmail) {
         return res.status(400).json({
@@ -727,6 +818,7 @@ async function registerRoutes(app2) {
         role: "user"
         // Default role is "user" (updated from "business_owner")
       };
+      console.log("User data to be inserted:", userData);
       const user = await storage.createUser(userData);
       return res.status(201).json({
         success: true,
@@ -755,7 +847,7 @@ async function registerRoutes(app2) {
         });
       }
       const companies2 = await storage.getCompaniesByUserId(user.id);
-      const companyId = companies2.length > 0 ? companies2[0].id : null;
+      const companyId = companies2.length > 0 ? companies2[0].uniqueId : null;
       return res.json({
         success: true,
         message: "Login successful",
@@ -803,6 +895,28 @@ async function registerRoutes(app2) {
     }
     return res.json(user);
   });
+  app2.get("/api/debug/users", async (req, res) => {
+    const result = await db.select().from(users);
+    console.log("Queried users:", result);
+    res.json(result);
+  });
+  app2.post("/api/debug/create-test-user", async (req, res) => {
+    try {
+      const testUser = {
+        username: "test@example.com",
+        email: "test@example.com",
+        password: "test123",
+        fullName: "Test User",
+        role: "user"
+      };
+      const result = await db.insert(users).values(testUser).returning();
+      console.log("Manual test user insert result:", result);
+      res.json({ success: true, inserted: result });
+    } catch (error) {
+      console.error("Manual insert error:", error);
+      res.status(500).json({ error: "Insert failed" });
+    }
+  });
   app2.post("/api/companies", async (req, res) => {
     try {
       const companyData = insertCompanySchema.parse(req.body);
@@ -810,9 +924,12 @@ async function registerRoutes(app2) {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
+      console.log("Company data to be inserted:", companyData);
       const company = await storage.createCompany(companyData);
+      console.log("Company inserted:", company);
       return res.status(201).json(company);
     } catch (error) {
+      console.error("Company creation error:", error);
       return handleZodError(error, res);
     }
   });
@@ -844,8 +961,7 @@ async function registerRoutes(app2) {
         const defaultCompany = await storage.createCompany({
           userId: 1,
           // Default user ID
-          id: financialData.companyId,
-          // Force the same ID that was requested
+          uniqueId: financialData.companyId,
           name: "Default Company",
           sector: "Technology",
           location: "USA",
@@ -883,8 +999,7 @@ async function registerRoutes(app2) {
         const defaultCompany = await storage.createCompany({
           userId: 1,
           // Default user ID
-          id: employeeData.companyId,
-          // Force the same ID that was requested
+          uniqueId: employeeData.companyId,
           name: "Default Company",
           sector: "Technology",
           location: "USA",
@@ -927,8 +1042,7 @@ async function registerRoutes(app2) {
         const defaultCompany = await storage.createCompany({
           userId: 1,
           // Default user ID
-          id: companyId,
-          // Force the same ID that was requested
+          uniqueId: companyId,
           name: "Default Company",
           sector: "Technology",
           location: "USA",
@@ -974,8 +1088,7 @@ async function registerRoutes(app2) {
         const defaultCompany = await storage.createCompany({
           userId: 1,
           // Default user ID
-          id: technologyData.companyId,
-          // Force the same ID that was requested
+          uniqueId: technologyData.companyId,
           name: "Default Company",
           sector: "Technology",
           location: "USA",
@@ -1011,8 +1124,7 @@ async function registerRoutes(app2) {
         const defaultCompany = await storage.createCompany({
           userId: 1,
           // Default user ID
-          id: ownerIntentData.companyId,
-          // Force the same ID that was requested
+          uniqueId: ownerIntentData.companyId,
           name: "Default Company",
           sector: "Technology",
           location: "USA",
@@ -1048,8 +1160,7 @@ async function registerRoutes(app2) {
         const defaultCompany = await storage.createCompany({
           userId: 1,
           // Default user ID
-          id: valuationData.companyId,
-          // Force the same ID that was requested
+          uniqueId: valuationData.companyId,
           name: "Default Company",
           sector: "Technology",
           location: "USA",
@@ -1171,11 +1282,11 @@ async function registerRoutes(app2) {
       discountedCashFlow: Math.round(discountedCashFlow).toString(),
       revenueMultiple: Math.round(revenueMultiple).toString(),
       assetBased: Math.round(assetBased).toString(),
-      riskScore: riskScore.toString(),
-      financialHealthScore: financialHealthScore.toString(),
-      marketPositionScore: marketPositionScore.toString(),
-      operationalEfficiencyScore: operationalEfficiencyScore.toString(),
-      debtStructureScore: debtStructureScore.toString(),
+      riskScore,
+      financialHealthScore,
+      marketPositionScore,
+      operationalEfficiencyScore,
+      debtStructureScore,
       redFlags
     };
     const valuation = await storage.createValuation(valuationData);
@@ -1485,8 +1596,26 @@ async function registerRoutes(app2) {
     }
     ws.on("message", (message) => {
       try {
-        const data = JSON.parse(message.toString());
-        console.log("Received message:", data.type);
+        const messageString = message.toString();
+        if (!messageString.trim()) {
+          throw new Error("Empty message received");
+        }
+        let data;
+        try {
+          data = JSON.parse(messageString);
+        } catch (parseError) {
+          if (messageString.toLowerCase() === "ping") {
+            return ws.send(JSON.stringify({
+              type: "pong",
+              timestamp: (/* @__PURE__ */ new Date()).toISOString()
+            }));
+          }
+          throw new Error('Message must be valid JSON or "ping" command');
+        }
+        if (!data || typeof data !== "object") {
+          throw new Error("Invalid message format");
+        }
+        console.log("Received message:", data.type || "[unknown]");
         if (data.type === "subscribe") {
           console.log("Client subscribed to channel:", data.channel);
           ws.send(JSON.stringify({
@@ -1577,11 +1706,16 @@ async function registerRoutes(app2) {
           }
         }
       } catch (error) {
-        console.error("Error processing WebSocket message:", error);
+        const err = error;
+        console.error("Error processing WebSocket message:", err);
         try {
           ws.send(JSON.stringify({
             type: "error",
-            error: "Failed to parse WebSocket message",
+            error: err.message || "Failed to process message",
+            details: {
+              expectedFormat: 'JSON with {type: string, ...} or "ping" string',
+              example: JSON.stringify({ type: "subscribe", channel: "updates" })
+            },
             timestamp: (/* @__PURE__ */ new Date()).toISOString()
           }));
         } catch (sendError) {
@@ -1947,6 +2081,7 @@ function serveStatic(app2) {
 }
 
 // server/index.ts
+import "dotenv/config";
 var app = express2();
 app.use(express2.json());
 app.use(express2.urlencoded({ extended: false }));

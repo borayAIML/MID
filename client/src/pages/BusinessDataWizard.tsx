@@ -166,41 +166,6 @@ export default function BusinessDataWizard({ userData, onComplete }: BusinessDat
 
       console.log("Company creation response:", companyResponse);
       
-      if (!companyResponse.ok) {
-        console.error("Company creation failed:", await companyResponse.text());
-        
-        // Try a more direct approach with minimal data
-        console.log("Trying fallback company creation approach");
-        const fallbackResponse = await apiRequest("/api/companies", {
-          method: "POST",
-          body: JSON.stringify({
-            userId: parsedUserId,
-            uniqueId: parsedUserId,
-            name: "Default Company",
-            sector: "Technology",
-            location: "USA",
-            yearsInBusiness: "1-5",
-            goal: "Valuation"
-          }),
-          headers: {
-            "Content-Type": "application/json"
-          }
-        });
-        
-        if (!fallbackResponse.ok) {
-          throw new Error(`Fallback company creation also failed: ${await fallbackResponse.text()}`);
-        }
-        
-        const fallbackCompany = await fallbackResponse.json();
-        console.log("Fallback company created successfully:", fallbackCompany);
-        
-        // Save company ID to state and localStorage
-        localStorage.setItem('companyId', JSON.stringify(fallbackCompany.id));
-        setCompanyId(fallbackCompany.id);
-        
-        return fallbackCompany.id;
-      }
-      
       //const company = await companyResponse.json();
       console.log("Company created successfully:", companyResponse);
       
