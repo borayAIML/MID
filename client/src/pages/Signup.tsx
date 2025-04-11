@@ -88,28 +88,14 @@ export default function Signup() {
         toast({
           title: "Account created successfully",
           description:
-            "Welcome to MANDA INSTITUTE! Please complete your onboarding.",
+            "Welcome to MANDA INSTITUTE! Please complete your login.",
           variant: "destructive", // Using destructive as a workaround for success
         });
-
-        const responseLogin = await apiRequest("/api/login", {
-          method: "POST",
-          body: JSON.stringify({ email: data.email, password: data.password }),
-        }).then((response) => {
-          if (response && response.success) {
-            toast({
-              title: "Login successful",
-              description: "You have been logged in successfully.",
-              variant: "default",
-            });
-            navigate("/onboarding");
-          }
-        });
         
-        // Navigate to onboarding
-        // setTimeout(() => {
-          
-        // }, 1000);
+        // Navigate to login
+        setTimeout(() => {
+          navigate("/login");
+        }, 1000);
 
       } else {
         toast({
