@@ -34,17 +34,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     queryFn: async () => {
       try {
         const response = await apiRequest('/api/user', { method: 'GET' });
+        
+        console.log("Auth response:", response);
+        
         if (response && response.success) {
-          return {
+          // User is authenticated
+          const authData = {
             user: response.user,
             companyId: response.companyId || null
           };
+          
+          console.log("Auth data:", authData);
+          
+          // Update localStorage with the most recent data
+          if (authData.user) {
+            localStorage.setItem('userData', JSON.stringify(authData.user));
+            
+            if (authData.companyId) {
+              console.log("Setting companyId in localStorage from /api/user:", authData.companyId);
+              localStorage.setItem('companyId', authData.companyId.toString());
+            } else {
+              console.log("No companyId in user response");
+            }
+          }
+          
+          return authData;
         }
+        
+        // User is not authenticated
+        localStorage.removeItem('userData');
+        localStorage.removeItem('companyId');
         return { user: null, companyId: null };
       } catch (error) {
+        console.error("Error fetching user data:", error);
         return { user: null, companyId: null };
       }
-    }
+    },
+    staleTime: 60000, // Refresh auth state every minute
+    refetchOnWindowFocus: true
   });
 
   const loginMutation = useMutation({
@@ -63,19 +90,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         companyId: response.companyId
       };
     },
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
+      // Clear any existing localStorage data first
+      localStorage.removeItem('userData');
+      localStorage.removeItem('companyId');
+      localStorage.removeItem('businessData');
+      
       // Update localStorage for compatibility with existing code
       localStorage.setItem('userData', JSON.stringify(data.user));
-      localStorage.setItem('userId', data.user.id.toString());
-      // if (data.companyId) {
-      //   localStorage.setItem('companyId', data.companyId.toString());
-      // }
-      const company = await apiRequest(`/api/users/${data.user.id}/companies`, { method: 'GET' });
-
-      if (company && company.id) {
-        localStorage.setItem('companyId', company.id.toString());
+      
+      if (data.companyId) {
+        console.log("Setting companyId in localStorage:", data.companyId);
+        localStorage.setItem('companyId', data.companyId.toString());
       } else {
-        console.warn("No company found for user.");
+        console.log("No companyId in login response");
       }
       
       // Invalidate and refetch the auth query
@@ -120,7 +148,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.removeItem('userData');
       localStorage.removeItem('companyId');
       localStorage.removeItem('businessData');
-      localStorage.removeItem('userId');
       
       // Invalidate and refetch the auth query
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });

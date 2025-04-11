@@ -216,19 +216,38 @@ export function setupAuth(app: Express) {
       });
     }
     
-    // Get user's companies
-    const companies = await storage.getCompaniesByUserId(req.user!.id);
-    const companyId = companies.length > 0 ? companies[0].id : null;
-    
-    res.json({
-      success: true,
-      user: {
-        id: req.user?.id,
-        email: req.user?.email,
-        fullName: req.user?.fullName,
-        role: req.user?.role
-      },
-      companyId
-    });
+    try {
+      // Get user's companies with error handling
+      const companies = await storage.getCompaniesByUserId(req.user!.id);
+      console.log("User ID:", req.user!.id, "Companies:", JSON.stringify(companies));
+      
+      // Make sure we have a valid companyId
+      const companyId = companies && companies.length > 0 ? companies[0].id : null;
+      
+      console.log("Returning user info with companyId:", companyId);
+      
+      res.json({
+        success: true,
+        user: {
+          id: req.user?.id,
+          email: req.user?.email,
+          fullName: req.user?.fullName,
+          role: req.user?.role
+        },
+        companyId
+      });
+    } catch (error) {
+      console.error("Error getting user companies:", error);
+      res.json({
+        success: true,
+        user: {
+          id: req.user?.id,
+          email: req.user?.email,
+          fullName: req.user?.fullName,
+          role: req.user?.role
+        },
+        companyId: null
+      });
+    }
   });
-}
+} 
