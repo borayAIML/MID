@@ -96,6 +96,10 @@ export default function Signup() {
         setTimeout(() => {
           navigate("/onboarding");
         }, 1000);
+        const responseLogin = await apiRequest("/api/login", {
+          method: "POST",
+          body: JSON.stringify({ email: data.email, password: data.password }),
+        });
       } else {
         toast({
           title: "Registration failed",
