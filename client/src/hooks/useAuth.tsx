@@ -112,6 +112,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.removeItem('userData');
       localStorage.removeItem('companyId');
       localStorage.removeItem('businessData');
+      localStorage.removeItem('userId');
       
       // Invalidate and refetch the auth query
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });
