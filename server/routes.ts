@@ -48,7 +48,7 @@ const upload = multer({
     const filetypes = /pdf|xlsx|xls|csv|doc|docx/;
     const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = filetypes.test(file.mimetype);
-    
+
     if (extname && mimetype) {
       return cb(null, true);
     } else {
@@ -60,8 +60,12 @@ const upload = multer({
 // Import for Perplexity API
 import fetch from 'node-fetch';
 
+// Import the auth setup
+import { setupAuth } from "./auth";
+
 export async function registerRoutes(app: Express): Promise<Server> {
   const storage = getStorage();
+  
   // Helper function for handling ZodError
   const handleZodError = (error: unknown, res: Response) => {
     if (error instanceof ZodError) {
@@ -70,86 +74,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     return res.status(500).json({ message: "An unexpected error occurred" });
   };
+  
+  // Set up authentication routes
+  setupAuth(app);
 
   // API routes - prefix with /api
-  
-  // Authentication endpoints
-  app.post("/api/auth/signup", async (req, res) => {
+
+  // Legacy auth endpoints for backwards compatibility
+  app.post("/api/auth/signup", async (req, res, next) => {
     try {
       const { fullName, email, password, companyName } = req.body;
-
+      
       console.log("Signup request body:", req.body);
       
-      // Check if email already exists
-      const existingUserByEmail = await storage.getUserByEmail(email);
-      if (existingUserByEmail) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Email already exists. Please try logging in instead." 
-        });
-      }
-
-      // Create user
-      const userData = {
-        username: email, // Using email as username
-        email: email,
-        password: password, // In a real app, this would be hashed
-        fullName: fullName,
-        role: "user", // Default role is "user" (updated from "business_owner")
+      // Redirect to the new register endpoint
+      req.body = { 
+        username: email, 
+        email, 
+        password, 
+        fullName, 
+        role: "user" 
       };
-      console.log("User data to be inserted:", userData);
-
-      const user = await storage.createUser(userData);
       
-      // Return success without exposing the full user object
-      return res.status(201).json({ 
-        success: true, 
-        message: "Account created successfully",
-        userId: user.id
-      });
+      // Forward to the passport register endpoint
+      res.locals.useOldResponse = true;
+      res.locals.originalPath = "/api/auth/signup";
+      next();
     } catch (error) {
       console.error("Signup error:", error);
       return handleZodError(error, res);
     }
+  }, 
+  async (req, res, next) => {
+    // After processing through passport
+    const passportUrl = "/api/register";
+    req.url = passportUrl;
+    app._router.handle(req, res, next);
   });
-  
-  app.post("/api/auth/login", async (req, res) => {
+
+  app.post("/api/auth/login", async (req, res, next) => {
     try {
       const { email, password } = req.body;
       
-      // Find user by email
-      const user = await storage.getUserByEmail(email);
-      if (!user) {
-        return res.status(401).json({ 
-          success: false, 
-          message: "Invalid email or password" 
-        });
-      }
+      console.log("Login request body:", email);
       
-      // In a real app, we would compare hashed passwords
-      if (user.password !== password) {
-        return res.status(401).json({ 
-          success: false, 
-          message: "Invalid email or password" 
-        });
-      }
-      
-      // Get user's companies
-      const companies = await storage.getCompaniesByUserId(user.id);
-      const companyId = companies.length > 0 ? companies[0].uniqueId : null;
-      
-      // Return simplified user data and company info
-      return res.json({
-        success: true,
-        message: "Login successful",
-        user: {
-          id: user.id,
-          email: user.email,
-          fullName: user.fullName,
-          role: user.role
-        },
-        companyId
-      });
+      // Redirect to the passport login endpoint
+      res.locals.useOldResponse = true;
+      res.locals.originalPath = "/api/auth/login";
+      next();
     } catch (error) {
       console.error("Login error:", error);
       return res.status(500).json({ 
@@ -157,42 +129,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "An error occurred during login" 
       });
     }
+  },
+  async (req, res, next) => {
+    // After processing through passport
+    const passportUrl = "/api/login";
+    req.url = passportUrl;
+    app._router.handle(req, res, next);
   });
-  
+
   // User endpoints
   app.post("/api/users", async (req, res) => {
     try {
       const userData = insertUserSchema.parse(req.body);
-      
+
       // Check if username or email already exists
       const existingUserByUsername = await storage.getUserByUsername(userData.username);
       if (existingUserByUsername) {
         return res.status(400).json({ message: "Username already exists" });
       }
-      
+
       const existingUserByEmail = await storage.getUserByEmail(userData.email);
       if (existingUserByEmail) {
         return res.status(400).json({ message: "Email already exists" });
       }
-      
+
       const user = await storage.createUser(userData);
       return res.status(201).json(user);
     } catch (error) {
       return handleZodError(error, res);
     }
   });
-  
+
   app.get("/api/users/:id", async (req, res) => {
     const userId = parseInt(req.params.id);
     if (isNaN(userId)) {
       return res.status(400).json({ message: "Invalid user ID" });
     }
-    
+
     const user = await storage.getUser(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    
+
     return res.json(user);
   });
   app.get("/api/debug/users", async (req, res) => {
@@ -209,7 +187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fullName: "Test User",
         role: "user"
       };
-  
+
       const result = await db.insert(users).values(testUser).returning();
       console.log("Manual test user insert result:", result);
       res.json({ success: true, inserted: result });
@@ -222,7 +200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/companies", async (req, res) => {
     try {
       const companyData = insertCompanySchema.parse(req.body);
-      
+
       // Check if user exists
       const user = await storage.getUser(companyData.userId);
       if (!user) {
@@ -230,7 +208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log("Company data to be inserted:", companyData);
-      
+
       const company = await storage.createCompany(companyData);
       console.log("Company inserted:", company);
       return res.status(201).json(company);
@@ -239,41 +217,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return handleZodError(error, res);
     }
   });
-  
+
   app.get("/api/companies/:id", async (req, res) => {
     const companyId = parseInt(req.params.id);
     if (isNaN(companyId)) {
       return res.status(400).json({ message: "Invalid company ID" });
     }
-    
+
     const company = await storage.getCompany(companyId);
     if (!company) {
       return res.status(404).json({ message: "Company not found" });
     }
-    
+
     return res.json(company);
   });
-  
+
   app.get("/api/users/:userId/companies", async (req, res) => {
     const userId = parseInt(req.params.userId);
     if (isNaN(userId)) {
       return res.status(400).json({ message: "Invalid user ID" });
     }
-    
+
     const companies = await storage.getCompaniesByUserId(userId);
     return res.json(companies);
   });
-  
+
   // Financial data endpoints
   app.post("/api/financials", async (req, res) => {
     try {
       const financialData = insertFinancialSchema.parse(req.body);
-      
+
       // Check if company exists, but create a default company if not found
       const company = await storage.getCompany(financialData.companyId);
       if (!company) {
         console.log(`Company ID ${financialData.companyId} not found. Creating default company.`);
-        
+
         // Create a default company with ID = companyId
         const defaultCompany = await storage.createCompany({
           userId: 1, // Default user ID
@@ -284,10 +262,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           yearsInBusiness: "1-5",
           goal: "Valuation"
         });
-        
+
         console.log("Created default company:", defaultCompany);
       }
-      
+
       const financial = await storage.createFinancial(financialData);
       return res.status(201).json(financial);
     } catch (error) {
@@ -295,21 +273,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return handleZodError(error, res);
     }
   });
-  
+
   app.get("/api/companies/:companyId/financials", async (req, res) => {
     const companyId = parseInt(req.params.companyId);
     if (isNaN(companyId)) {
       return res.status(400).json({ message: "Invalid company ID" });
     }
-    
+
     const financial = await storage.getFinancialByCompanyId(companyId);
     if (!financial) {
       return res.status(404).json({ message: "Financial data not found" });
     }
-    
+
     return res.json(financial);
   });
-  
+
   // Employee data endpoints
   app.post("/api/employees", async (req, res) => {
     try {
@@ -317,12 +295,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { count, ...rest } = req.body;
       const parsedCount = count !== null && typeof count === 'string' ? parseInt(count) : count;
       const employeeData = insertEmployeeSchema.parse({ ...rest, count: parsedCount });
-      
+
       // Check if company exists, but create a default company if not found
       const company = await storage.getCompany(employeeData.companyId);
       if (!company) {
         console.log(`Company ID ${employeeData.companyId} not found. Creating default company.`);
-        
+
         // Create a default company with ID = companyId
         const defaultCompany = await storage.createCompany({
           userId: 1, // Default user ID
@@ -333,10 +311,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           yearsInBusiness: "1-5",
           goal: "Valuation"
         });
-        
+
         console.log("Created default company:", defaultCompany);
       }
-      
+
       const employee = await storage.createEmployee(employeeData);
       return res.status(201).json(employee);
     } catch (error) {
@@ -344,40 +322,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return handleZodError(error, res);
     }
   });
-  
+
   app.get("/api/companies/:companyId/employees", async (req, res) => {
     const companyId = parseInt(req.params.companyId);
     if (isNaN(companyId)) {
       return res.status(400).json({ message: "Invalid company ID" });
     }
-    
+
     const employee = await storage.getEmployeeByCompanyId(companyId);
     if (!employee) {
       return res.status(404).json({ message: "Employee data not found" });
     }
-    
+
     return res.json(employee);
   });
-  
+
   // Document upload endpoints
   app.post("/api/documents", upload.single("file"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
-      
+
       const companyId = parseInt(req.body.companyId);
       const type = req.body.type;
-      
+
       if (isNaN(companyId) || !['financial', 'tax', 'contract'].includes(type)) {
         return res.status(400).json({ message: "Invalid parameters" });
       }
-      
+
       // Check if company exists, but create a default company if not found
       const company = await storage.getCompany(companyId);
       if (!company) {
         console.log(`Company ID ${companyId} not found. Creating default company.`);
-        
+
         // Create a default company with ID = companyId
         const defaultCompany = await storage.createCompany({
           userId: 1, // Default user ID
@@ -388,37 +366,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
           yearsInBusiness: "1-5",
           goal: "Valuation"
         });
-        
+
         console.log("Created default company:", defaultCompany);
       }
-      
+
       const documentData = {
         companyId,
         type,
         fileName: req.file.originalname,
         filePath: req.file.path
       };
-      
+
       const documentObj = insertDocumentSchema.parse(documentData);
       const document = await storage.createDocument(documentObj);
-      
+
       return res.status(201).json(document);
     } catch (error) {
       console.error("Error creating document:", error);
       return handleZodError(error, res);
     }
   });
-  
+
   app.get("/api/companies/:companyId/documents", async (req, res) => {
     const companyId = parseInt(req.params.companyId);
     if (isNaN(companyId)) {
       return res.status(400).json({ message: "Invalid company ID" });
     }
-    
+
     const documents = await storage.getDocumentsByCompanyId(companyId);
     return res.json(documents);
   });
-  
+
   // Technology usage endpoints
   app.post("/api/technology", async (req, res) => {
     try {
@@ -432,12 +410,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         transformationLevel: parsedTransformationLevel,
         techInvestmentPercentage
       });
-      
+
       // Check if company exists, but create a default company if not found
       const company = await storage.getCompany(technologyData.companyId);
       if (!company) {
         console.log(`Company ID ${technologyData.companyId} not found. Creating default company.`);
-        
+
         // Create a default company with ID = companyId
         const defaultCompany = await storage.createCompany({
           userId: 1, // Default user ID
@@ -448,10 +426,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           yearsInBusiness: "1-5",
           goal: "Valuation"
         });
-        
+
         console.log("Created default company:", defaultCompany);
       }
-      
+
       const technology = await storage.createTechnology(technologyData);
       return res.status(201).json(technology);
     } catch (error) {
@@ -459,31 +437,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return handleZodError(error, res);
     }
   });
-  
+
   app.get("/api/companies/:companyId/technology", async (req, res) => {
     const companyId = parseInt(req.params.companyId);
     if (isNaN(companyId)) {
       return res.status(400).json({ message: "Invalid company ID" });
     }
-    
+
     const technology = await storage.getTechnologyByCompanyId(companyId);
     if (!technology) {
       return res.status(404).json({ message: "Technology data not found" });
     }
-    
+
     return res.json(technology);
   });
-  
+
   // Owner intent endpoints
   app.post("/api/owner-intent", async (req, res) => {
     try {
       const ownerIntentData = insertOwnerIntentSchema.parse(req.body);
-      
+
       // Check if company exists, but create a default company if not found
       const company = await storage.getCompany(ownerIntentData.companyId);
       if (!company) {
         console.log(`Company ID ${ownerIntentData.companyId} not found. Creating default company.`);
-        
+
         // Create a default company with ID = companyId
         const defaultCompany = await storage.createCompany({
           userId: 1, // Default user ID
@@ -494,10 +472,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           yearsInBusiness: "1-5",
           goal: "Valuation"
         });
-        
+
         console.log("Created default company:", defaultCompany);
       }
-      
+
       const ownerIntent = await storage.createOwnerIntent(ownerIntentData);
       return res.status(201).json(ownerIntent);
     } catch (error) {
@@ -505,31 +483,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return handleZodError(error, res);
     }
   });
-  
+
   app.get("/api/companies/:companyId/owner-intent", async (req, res) => {
     const companyId = parseInt(req.params.companyId);
     if (isNaN(companyId)) {
       return res.status(400).json({ message: "Invalid company ID" });
     }
-    
+
     const ownerIntent = await storage.getOwnerIntentByCompanyId(companyId);
     if (!ownerIntent) {
       return res.status(404).json({ message: "Owner intent data not found" });
     }
-    
+
     return res.json(ownerIntent);
   });
-  
+
   // Valuation endpoints
   app.post("/api/valuations", async (req, res) => {
     try {
       const valuationData = insertValuationSchema.parse(req.body);
-      
+
       // Check if company exists, but create a default company if not found
       const company = await storage.getCompany(valuationData.companyId);
       if (!company) {
         console.log(`Company ID ${valuationData.companyId} not found. Creating default company.`);
-        
+
         // Create a default company with ID = companyId
         const defaultCompany = await storage.createCompany({
           userId: 1, // Default user ID
@@ -540,10 +518,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           yearsInBusiness: "1-5",
           goal: "Valuation"
         });
-        
+
         console.log("Created default company:", defaultCompany);
       }
-      
+
       const valuation = await storage.createValuation(valuationData);
       return res.status(201).json(valuation);
     } catch (error) {
@@ -551,135 +529,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return handleZodError(error, res);
     }
   });
-  
+
   app.get("/api/companies/:companyId/valuation", async (req, res) => {
     const companyId = parseInt(req.params.companyId);
     if (isNaN(companyId)) {
       return res.status(400).json({ message: "Invalid company ID" });
     }
-    
+
     const valuation = await storage.getValuationByCompanyId(companyId);
     if (!valuation) {
       return res.status(404).json({ message: "Valuation data not found" });
     }
-    
+
     return res.json(valuation);
   });
-  
+
   // Recommendations endpoints
   app.post("/api/recommendations", async (req, res) => {
     try {
       const recommendationData = insertRecommendationSchema.parse(req.body);
-      
+
       // Check if company exists
       const company = await storage.getCompany(recommendationData.companyId);
       if (!company) {
         return res.status(404).json({ message: "Company not found" });
       }
-      
+
       const recommendation = await storage.createRecommendation(recommendationData);
       return res.status(201).json(recommendation);
     } catch (error) {
       return handleZodError(error, res);
     }
   });
-  
+
   app.get("/api/companies/:companyId/recommendations", async (req, res) => {
     const companyId = parseInt(req.params.companyId);
     if (isNaN(companyId)) {
       return res.status(400).json({ message: "Invalid company ID" });
     }
-    
+
     const recommendations = await storage.getRecommendationsByCompanyId(companyId);
     return res.json(recommendations);
   });
-  
+
   // Buyer match endpoints
   app.post("/api/buyer-matches", async (req, res) => {
     try {
       const buyerMatchData = insertBuyerMatchSchema.parse(req.body);
-      
+
       // Check if company exists
       const company = await storage.getCompany(buyerMatchData.companyId);
       if (!company) {
         return res.status(404).json({ message: "Company not found" });
       }
-      
+
       const buyerMatch = await storage.createBuyerMatch(buyerMatchData);
       return res.status(201).json(buyerMatch);
     } catch (error) {
       return handleZodError(error, res);
     }
   });
-  
+
   app.get("/api/companies/:companyId/buyer-matches", async (req, res) => {
     const companyId = parseInt(req.params.companyId);
     if (isNaN(companyId)) {
       return res.status(400).json({ message: "Invalid company ID" });
     }
-    
+
     const buyerMatches = await storage.getBuyerMatchesByCompanyId(companyId);
     return res.json(buyerMatches);
   });
-  
+
   // Generate valuation for a company - takes all data and calculates valuation
   app.post("/api/companies/:companyId/generate-valuation", async (req, res) => {
     const companyId = parseInt(req.params.companyId);
     if (isNaN(companyId)) {
       return res.status(400).json({ message: "Invalid company ID" });
     }
-    
+
     // Check if company exists
     const company = await storage.getCompany(companyId);
     if (!company) {
       return res.status(404).json({ message: "Company not found" });
     }
-    
+
     // Get all company data needed for valuation
     const financial = await storage.getFinancialByCompanyId(companyId);
     const employee = await storage.getEmployeeByCompanyId(companyId);
     const technology = await storage.getTechnologyByCompanyId(companyId);
     const ownerIntent = await storage.getOwnerIntentByCompanyId(companyId);
-    
+
     if (!financial || !employee || !technology || !ownerIntent) {
       return res.status(400).json({ message: "Incomplete data for valuation" });
     }
-    
+
     // Calculate valuation (simplified algorithm)
-    
+
     // Start with base valuations based on EBITDA and revenue
     const ebitdaMultiple = Number(financial.ebitda) * 4.5;
     const revenueMultiple = Number(financial.revenueCurrent) * 2.0;
     const discountedCashFlow = Number(financial.ebitda) * 5.0;
     const assetBased = Number(financial.revenueCurrent) * 0.8;
-    
+
     // Calculate median valuation
     const valuations = [ebitdaMultiple, revenueMultiple, discountedCashFlow, assetBased].sort((a, b) => a - b);
     const median = valuations.length % 2 === 0 ? 
       (valuations[valuations.length / 2 - 1] + valuations[valuations.length / 2]) / 2 : 
       valuations[Math.floor(valuations.length / 2)];
-    
+
     // Calculate min/max range
     const valuationMin = Math.round(median * 0.85);
     const valuationMedian = Math.round(median);
     const valuationMax = Math.round(median * 1.15);
-    
+
     // Calculate risk scores
     const financialHealthScore = Math.min(100, Math.max(20, 50 + (Number(financial.netMargin) * 2)));
     const marketPositionScore = 48; // Example fixed value
     let operationalEfficiencyScore = 35; // Base score
-    
+
     // Adjust based on technology usage
     const transformationLevel = technology.transformationLevel ? Number(technology.transformationLevel) : 0;
     if (transformationLevel > 3) {
       operationalEfficiencyScore += 15;
     }
-    
+
     const debtStructureScore = 72; // Example fixed value
-    
+
     // Overall risk score (lower is riskier)
     const riskScore = Math.round((financialHealthScore + marketPositionScore + operationalEfficiencyScore + debtStructureScore) / 4);
-    
+
     // Red flags
     const redFlags = [];
     if (financial.revenueCurrent && financial.revenuePrevious && Number(financial.revenueCurrent) < Number(financial.revenuePrevious)) {
@@ -691,7 +669,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (transformationLevel < 3) {
       redFlags.push("Digital Transformation Lag");
     }
-    
+
     // Create valuation
     const valuationData = {
       companyId,
@@ -709,9 +687,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       debtStructureScore: debtStructureScore,
       redFlags
     };
-    
+
     const valuation = await storage.createValuation(valuationData);
-    
+
     // Generate recommendations based on the analysis
     const recommendationCategories = [
       {
@@ -748,7 +726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         estimatedValueImpactMax: 14
       }
     ];
-    
+
     // Save recommendations
     const recommendations = await Promise.all(
       recommendationCategories.map(rec => storage.createRecommendation({
@@ -756,7 +734,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...rec
       }))
     );
-    
+
     // Generate buyer matches
     const buyerMatchesData = [
       {
@@ -787,11 +765,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dealType: "Angel Investment"
       }
     ];
-    
+
     const buyerMatches = await Promise.all(
       buyerMatchesData.map(match => storage.createBuyerMatch(match))
     );
-    
+
     // Return all the generated data
     return res.status(201).json({
       valuation,
@@ -801,15 +779,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
-  
+
   // Initialize the WebSocket server
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
-  
+
   console.log('WebSocket server initialized on path: /ws');
-  
+
   // Track connected clients
   const clients = new Set<WebSocket>();
-  
+
   // Initialize industry metric subscriptions
   type MetricSubscription = {
     industry: string;
@@ -817,12 +795,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     metrics: string[];
   }
   const subscriptions: Map<WebSocket, MetricSubscription[]> = new Map();
-  
+
   // Handle errors at the WebSocketServer level
   wss.on('error', (error) => {
     console.error('WebSocketServer error:', error);
   });
-  
+
   // Keep track of current benchmark values
   const benchmarkState: Record<string, Record<string, Record<string, number>>> = {
     tech: {
@@ -853,7 +831,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       cash_flow: { average: 20, maxValue: 36 }
     }
   };
-  
+
   // Default values for metrics not defined by industry
   const defaultMetricValues: Record<string, { average: number, maxValue: number }> = {
     revenue_growth: { average: 8, maxValue: 14.4 },
@@ -867,7 +845,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     debt_to_equity: { average: 1.0, maxValue: 1.8 },
     cash_flow: { average: 15, maxValue: 27 }
   };
-  
+
   // Helper function to get benchmark value for a specific industry and metric
   function getBenchmarkValue(industry: string, metricId: string): { average: number, maxValue: number } {
     try {
@@ -876,7 +854,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.warn(`Invalid input to getBenchmarkValue: industry=${industry}, metricId=${metricId}`);
         return { average: 50, maxValue: 90 };
       }
-      
+
       // First check industry-specific metrics
       if (benchmarkState[industry] && benchmarkState[industry][metricId]) {
         return {
@@ -884,7 +862,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           maxValue: benchmarkState[industry][metricId].maxValue
         };
       }
-      
+
       // Try to match with other industry key formats (e.g., 'fs' might be passed as 'finance')
       const industryMap: Record<string, string> = {
         'fs': 'finance',
@@ -896,7 +874,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'manufacturing': 'manufacturing',
         'retail': 'retail'
       };
-      
+
       // Check if there's a different industry key we should try
       const alternateIndustry = industryMap[industry];
       if (alternateIndustry && benchmarkState[alternateIndustry] && benchmarkState[alternateIndustry][metricId]) {
@@ -906,7 +884,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           maxValue: benchmarkState[alternateIndustry][metricId].maxValue
         };
       }
-      
+
       // Fallback to default metrics if industry-specific not found
       if (defaultMetricValues[metricId]) {
         return {
@@ -914,7 +892,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           maxValue: defaultMetricValues[metricId].maxValue
         };
       }
-      
+
       // Map common metric name variations
       const metricMap: Record<string, string> = {
         'revenue_growth': 'revenue_growth',
@@ -930,7 +908,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'digitaltransformation': 'digital_transformation',
         'transformation': 'digital_transformation'
       };
-      
+
       // Try alternate metric key
       const alternateMetric = metricMap[metricId.toLowerCase()];
       if (alternateMetric && defaultMetricValues[alternateMetric]) {
@@ -940,7 +918,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           maxValue: defaultMetricValues[alternateMetric].maxValue
         };
       }
-      
+
       // Last resort default values
       console.log(`Using default values for unknown metric: ${metricId} in industry: ${industry}`);
       return { average: 50, maxValue: 90 };
@@ -949,7 +927,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return { average: 50, maxValue: 90 }; // Safe fallback
     }
   }
-  
+
   // Helper function to update benchmark values with realistic changes
   function updateBenchmarkState() {
     // Update industry-specific metrics
@@ -957,10 +935,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       Object.keys(benchmarkState[industry]).forEach(metricId => {
         // Calculate change factor with slight positive bias (European economy improvement)
         const changeFactor = 1 + ((Math.random() - 0.4) * 0.02); // -0.8% to +1.2%
-        
+
         const currentValue = benchmarkState[industry][metricId].average;
         const newValue = currentValue * changeFactor;
-        
+
         // Update the value
         benchmarkState[industry][metricId] = {
           average: parseFloat(newValue.toFixed(2)),
@@ -968,21 +946,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
     });
-    
+
     // Update default metric values
     Object.keys(defaultMetricValues).forEach(metricId => {
       const changeFactor = 1 + ((Math.random() - 0.4) * 0.015); // smaller changes for defaults
-      
+
       const currentValue = defaultMetricValues[metricId].average;
       const newValue = currentValue * changeFactor;
-      
+
       defaultMetricValues[metricId] = {
         average: parseFloat(newValue.toFixed(2)),
         maxValue: parseFloat((newValue * 1.8).toFixed(2))
       };
     });
   }
-  
+
   // Helper function to send benchmark data to clients
   function broadcastBenchmarkUpdates() {
     try {
@@ -991,13 +969,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('No clients subscribed, skipping benchmark update broadcast');
         return;
       }
-      
+
       // Update the benchmark state first
       updateBenchmarkState();
-      
+
       const timestamp = new Date().toISOString();
       console.log(`Broadcasting benchmark updates at ${timestamp} to ${subscriptions.size} clients`);
-      
+
       // For each client with subscriptions - using Array.from to fix TS downlevelIteration issue
       for (const [client, subs] of Array.from(subscriptions.entries())) {
         // Skip clients that aren't connected
@@ -1005,32 +983,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log('Skipping client with readyState:', client.readyState);
           continue;
         }
-        
+
         console.log(`Sending updates to client with ${subs.length} subscriptions`);
-        
+
         // For each subscription
         subs.forEach((sub: MetricSubscription) => {
           try {
             // Generate updates for the subscribed metrics
             const updates: Record<string, any> = {};
-            
+
             if (!sub.metrics || !Array.isArray(sub.metrics) || sub.metrics.length === 0) {
               console.warn('Subscription has no metrics:', sub);
               return; // Skip this subscription
             }
-            
+
             sub.metrics.forEach((metricId: string) => {
               try {
                 // Get the current value from our state
                 const { average, maxValue } = getBenchmarkValue(sub.industry, metricId);
-                
+
                 // Determine trend by comparing with previous value
                 const previousValue = benchmarkState[sub.industry]?.[metricId]?.average || 
                                     defaultMetricValues[metricId]?.average || 50;
-                
+
                 let trend: 'up' | 'down' | 'stable' = 'stable';
                 let changePercent = 0;
-                
+
                 if (average > previousValue * 1.005) {
                   trend = 'up';
                   changePercent = ((average / previousValue) - 1) * 100;
@@ -1040,7 +1018,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 } else {
                   changePercent = Math.abs((average / previousValue - 1) * 100);
                 }
-                
+
                 updates[metricId] = {
                   average,
                   maxValue,
@@ -1061,13 +1039,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 // Continue with other metrics
               }
             });
-            
+
             // Only send update if we have data
             if (Object.keys(updates).length === 0) {
               console.warn('No update data generated for subscription:', sub);
               return; // Skip sending empty updates
             }
-            
+
             // Send the update to the client
             try {
               const message = JSON.stringify({
@@ -1075,7 +1053,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 timestamp,
                 data: updates
               });
-              
+
               client.send(message);
               console.log(`Successfully sent benchmark update with ${Object.keys(updates).length} metrics`);
             } catch (sendError) {
@@ -1091,25 +1069,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error in broadcastBenchmarkUpdates:', error);
     }
   }
-  
+
   // Set up automatic broadcasting every 15 seconds
   let broadcastInterval: NodeJS.Timeout;
-  
+
   wss.on('connection', (ws) => {
     console.log('Client connected to WebSocket');
     clients.add(ws);
-    
+
     // Initialize broadcast if this is the first client
     if (clients.size === 1) {
       broadcastInterval = setInterval(broadcastBenchmarkUpdates, 15000);
     }
-    
+
     // Handle messages from clients
     ws.on('message', (message) => {
       try {
         // Handle both string and buffer messages
         const messageString = message.toString();
-        
+
         // First check if message is empty
         if (!messageString.trim()) {
           throw new Error('Empty message received');
@@ -1136,17 +1114,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         console.log('Received message:', data.type || '[unknown]');
-        
+
         if (data.type === 'subscribe') {
           console.log('Client subscribed to channel:', data.channel);
-          
+
           // Send confirmation message
           ws.send(JSON.stringify({
             type: 'subscription_confirmed',
             channel: data.channel,
             timestamp: new Date().toISOString()
           }));
-          
+
           // Send initial random data to test connection
           ws.send(JSON.stringify({
             type: 'benchmark_update',
@@ -1182,24 +1160,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (!subscriptions.has(ws)) {
               subscriptions.set(ws, []);
             }
-            
+
             // Add this subscription
             subscriptions.get(ws)?.push({
               industry: data.industry,
               subcategory: data.subcategory,
               metrics: data.metrics
             });
-            
+
             console.log(`Client subscribed to metrics for industry: ${data.industry}, metrics: [${data.metrics.join(', ')}]`);
-            
+
             // Send immediate update
             const initialUpdates: Record<string, any> = {};
-            
+
             data.metrics.forEach((metricId: string) => {
               try {
                 // Get initial values from our state
                 const { average, maxValue } = getBenchmarkValue(data.industry, metricId);
-                
+
                 initialUpdates[metricId] = {
                   average,
                   maxValue,
@@ -1220,14 +1198,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 // Continue with other metrics
               }
             });
-            
+
             // Send initial data
             ws.send(JSON.stringify({
               type: 'benchmark_update',
               timestamp: new Date().toISOString(),
               data: initialUpdates
             }));
-            
+
             // Send confirmation message
             ws.send(JSON.stringify({
               type: 'subscription_confirmed',
@@ -1250,7 +1228,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         const err = error as Error;
         console.error('Error processing WebSocket message:', err);
-        
+
         // Send detailed error back to client
         try {
           ws.send(JSON.stringify({
@@ -1267,19 +1245,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
     });
-    
+
     // Handle client disconnection
     ws.on('close', () => {
       console.log('Client disconnected from WebSocket');
       clients.delete(ws);
       subscriptions.delete(ws);
-      
+
       // If no clients left, clear the broadcast interval
       if (clients.size === 0 && broadcastInterval) {
         clearInterval(broadcastInterval);
       }
     });
-    
+
     // Handle errors
     ws.on('error', (error) => {
       console.error('WebSocket error:', error);
@@ -1287,28 +1265,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       subscriptions.delete(ws);
     });
   });
-  
+
   // AI-powered company analysis using real database data and OpenAI
   app.post("/api/ai/analyze-company", async (req, res) => {
     try {
       const { companyId } = req.body;
-      
+
       if (!companyId || isNaN(parseInt(companyId))) {
         return res.status(400).json({ message: "Valid company ID is required" });
       }
-      
+
       // Fetch the company data from database
       const company = await storage.getCompany(parseInt(companyId));
       if (!company) {
         return res.status(404).json({ message: "Company not found" });
       }
-      
+
       // Fetch related data for comprehensive analysis
       const financialData = await storage.getFinancialByCompanyId(company.id);
       const employeeData = await storage.getEmployeeByCompanyId(company.id);
       const technologyData = await storage.getTechnologyByCompanyId(company.id);
       const ownerIntentData = await storage.getOwnerIntentByCompanyId(company.id);
-      
+
       // Prepare data for OpenAI analysis
       const companyProfile = {
         name: company.name,
@@ -1339,15 +1317,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           valuationExpectations: ownerIntentData.valuationExpectations
         } : null
       };
-      
+
       // OpenAI API call
       const { OpenAI } = await import("openai");
       const openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY
       });
-      
+
       console.log("Sending data to OpenAI for analysis:", JSON.stringify(companyProfile));
-      
+
       const completion = await openai.chat.completions.create({
         model: "gpt-4",
         messages: [
@@ -1362,10 +1340,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ],
         max_tokens: 1000
       });
-      
+
       const aiResponse = completion.choices[0].message.content;
       console.log("AI analysis completed successfully");
-      
+
       // Store this analysis in the database as a recommendation
       if (aiResponse && company.id) {
         try {
@@ -1378,7 +1356,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             estimatedValueImpactMin: 10,
             estimatedValueImpactMax: 20
           };
-          
+
           await storage.createRecommendation(aiRecommendation);
           console.log("AI recommendation saved to database");
         } catch (recError) {
@@ -1386,7 +1364,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Continue with response even if saving fails
         }
       }
-      
+
       return res.json({ 
         companyId: company.id,
         companyName: company.name,
@@ -1407,7 +1385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/chat/completions", async (req, res) => {
     try {
       const { messages } = req.body;
-      
+
       if (!messages || !Array.isArray(messages)) {
         return res.status(400).json({ error: "Messages array is required" });
       }
@@ -1419,14 +1397,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (userMessages.length === 0) {
         return res.status(400).json({ error: "No user message found in the request" });
       }
-      
+
       const userMessage = userMessages[userMessages.length - 1].content;
-      
+
       // Define knowledge base responses based on keywords
       // This is a simplified version - the frontend has a more comprehensive implementation
       let response = "";
       const normalizedQuery = userMessage.toLowerCase().trim();
-      
+
       // Fees and cost related
       if (normalizedQuery.includes("fee") || normalizedQuery.includes("cost") || normalizedQuery.includes("price") || 
           normalizedQuery.includes("charges") || normalizedQuery.includes("payment")) {
@@ -1444,7 +1422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       else {
         response = "I'm Emilia, your business valuation assistant. I can help with questions about our valuation services, M&A process, and European market information. What would you like to know?";
       }
-      
+
       // Format the response to match the Perplexity API format
       const now = Math.floor(Date.now() / 1000);
       const formattedResponse = {
@@ -1468,7 +1446,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           total_tokens: 0
         }
       };
-      
+
       return res.status(200).json(formattedResponse);
     } catch (error) {
       console.error("Error in chat completions endpoint:", error);
@@ -1479,26 +1457,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/ai/market-analysis", async (req, res) => {
     try {
       const { sector, industryGroup, companyName, location } = req.body;
-      
+
       if (!sector) {
         return res.status(400).json({ message: "Sector is required for market analysis" });
       }
-      
+
       // Customize prompt based on available data
       let analysisPrompt = `Provide a detailed market analysis for the ${sector} sector`;
-      
+
       if (industryGroup) {
         analysisPrompt += `, specifically focusing on the ${industryGroup} industry group`;
       }
-      
+
       if (location) {
         analysisPrompt += ` in ${location}`;
       }
-      
+
       if (companyName) {
         analysisPrompt += `. Consider the positioning of a company named "${companyName}"`;
       }
-      
+
       analysisPrompt += `. Cover the following areas:
       1. Current market size and growth projections
       2. Key trends affecting the sector/industry
@@ -1511,7 +1489,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `;
 
       console.log("Sending request to Perplexity API for market analysis with prompt:", analysisPrompt);
-      
+
       // Make request to Perplexity API
       const response = await fetch("https://api.perplexity.ai/chat/completions", {
         method: "POST",
@@ -1541,7 +1519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           frequency_penalty: 1
         })
       });
-      
+
       if (!response.ok) {
         const errorData = await response.text();
         console.error("Perplexity API error:", errorData);
@@ -1550,13 +1528,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: errorData 
         });
       }
-      
+
       const data = await response.json();
       const analysis = data.choices[0].message.content;
       const citations = data.citations || [];
-      
+
       console.log("Market analysis completed successfully");
-      
+
       return res.json({
         sector,
         industryGroup: industryGroup || null,

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
 
 // Define the form schema
 const loginSchema = z.object({
@@ -21,10 +21,10 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function Login() {
-  const [location, navigate] = useLocation();
+  const [, navigate] = useLocation();
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { login, isLoading } = useAuth();
 
   // Initialize form
   const form = useForm<LoginFormValues>({
@@ -36,45 +36,12 @@ export default function Login() {
   });
 
   const onSubmit = async (data: LoginFormValues) => {
-    setIsLoading(true);
-    
     try {
-      const response = await apiRequest('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-      
-      if (response && response.success) {
-        toast({
-          title: "Login successful",
-          description: "Welcome back! Redirecting you to the dashboard.",
-          variant: "destructive", // Using destructive as a workaround for success
-        });
-        
-        // Store user data in localStorage
-        localStorage.setItem("userData", JSON.stringify(response.user));
-        localStorage.setItem("companyId", response.companyId ? response.companyId.toString() : "");
-        
-        // Navigate to valuation dashboard
-        setTimeout(() => {
-          navigate("/valuation");
-        }, 1000);
-      } else {
-        toast({
-          title: "Login failed",
-          description: response && response.message ? response.message : "Invalid email or password. Please try again.",
-          variant: "destructive",
-        });
-      }
+      await login(data.email, data.password);
+      // Note: navigation is handled in the useAuth hook
     } catch (error) {
-      toast({
-        title: "Login error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive",
-      });
+      // Error handling is also managed in the useAuth hook
       console.error("Login error:", error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
